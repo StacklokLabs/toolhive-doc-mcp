@@ -42,7 +42,10 @@ class AppConfig(BaseSettings):
         default=100, ge=0, le=200, description="Token overlap between adjacent chunks"
     )
     min_chunk_size_tokens: int = Field(
-        default=100, ge=50, le=512, description="Minimum chunk size in tokens - smaller sections will be aggregated"
+        default=100,
+        ge=50,
+        le=512,
+        description="Minimum chunk size in tokens - smaller sections will be aggregated",
     )
 
     # MCP Server

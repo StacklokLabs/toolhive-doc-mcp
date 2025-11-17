@@ -82,7 +82,8 @@ class Chunker:
             # Check if adding this section would exceed max size
             if current_tokens > 0 and (current_tokens + section_tokens) > self.chunk_size_tokens:
                 # Only create chunk if it meets minimum size
-                # Exception: if this is second-to-last section and would create undersized final chunk
+                # Exception: if this is second-to-last section and would create undersized
+                # final chunk
                 should_finalize = current_tokens >= self.min_chunk_size_tokens
 
                 if not should_finalize and not is_last_section:

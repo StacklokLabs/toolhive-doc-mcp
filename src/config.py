@@ -41,6 +41,9 @@ class AppConfig(BaseSettings):
     chunk_overlap_tokens: int = Field(
         default=100, ge=0, le=200, description="Token overlap between adjacent chunks"
     )
+    min_chunk_size_tokens: int = Field(
+        default=100, ge=50, le=512, description="Minimum chunk size in tokens - smaller sections will be aggregated"
+    )
 
     # MCP Server
     mcp_host: str = Field(default="0.0.0.0", description="MCP server bind address")

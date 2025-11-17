@@ -386,17 +386,13 @@ class DocSync:
         Returns:
             ParsedContent in format expected by Chunker (from doc_parser)
         """
-        # Build sections from headings
-        sections = []
-        if html_parsed.headings:
-            # Simple approach: pair headings with content
-            # In a more sophisticated implementation, we'd match content to headings
-            for heading in html_parsed.headings:
-                sections.append((heading, html_parsed.main_content))
-
+        # Don't create sections to avoid duplicate chunks
+        # Previously, this created one section per heading with the same content,
+        # resulting in N duplicate chunks for N headings
+        # Now we pass empty sections and let the chunker handle the full content once
         return MarkdownParsedContent(
             text=html_parsed.main_content,
             title=html_parsed.title,
-            sections=sections if sections else [],
+            sections=[],  # Empty - let chunker handle the full content
             metadata=html_parsed.metadata,
         )

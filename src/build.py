@@ -288,15 +288,14 @@ async def _process_html_file(html_file, url_to_hash, html_parser, chunker):
     # Convert to format expected by Chunker
     from src.services.doc_parser import ParsedContent as MarkdownParsedContent
 
-    sections = []
-    if parsed_html.headings:
-        for heading in parsed_html.headings:
-            sections.append((heading, parsed_html.main_content))
-
+    # Don't create sections to avoid duplicate chunks
+    # Previously, this created one section per heading with the same content,
+    # resulting in N duplicate chunks for N headings
+    # Now we pass empty sections and let the chunker handle the full content once
     markdown_parsed = MarkdownParsedContent(
         text=parsed_html.main_content,
         title=parsed_html.title,
-        sections=sections if sections else [],
+        sections=[],  # Empty - let chunker handle the full content
         metadata=parsed_html.metadata,
     )
 

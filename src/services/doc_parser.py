@@ -64,17 +64,29 @@ class DocParser:
         current_heading = None
         current_section_content = []
         title = None
+        is_first_heading = True
 
         for token in tokens:
             if token.type == "heading_open":
+                # Save previous section before starting new one
                 self._save_current_section(sections, current_heading, current_section_content)
                 current_section_content = []
                 current_heading = None
             elif token.type == "inline" and token.content:
                 text_parts.append(token.content)
-                title, current_heading = self._handle_inline_content(
-                    token.content, title, current_heading, current_section_content, sections
-                )
+
+                # Check if this is heading content (previous token was heading_open)
+                if current_heading is None:
+                    # This is a heading
+                    if is_first_heading:
+                        title = token.content
+                        is_first_heading = False
+                    current_heading = token.content
+                    # Include the heading text itself in the section content
+                    current_section_content.append(token.content)
+                else:
+                    # This is regular content under the current heading
+                    current_section_content.append(token.content)
             elif token.type in ("code_block", "fence") and token.content:
                 text_parts.append(token.content)
                 current_section_content.append(token.content)
@@ -90,25 +102,6 @@ class DocParser:
         """Save current section if it has content"""
         if heading and content:
             sections.append((heading, " ".join(content)))
-
-    def _handle_inline_content(
-        self,
-        content: str,
-        title: str | None,
-        current_heading: str | None,
-        current_section_content: list[str],
-        sections: list,
-    ) -> tuple[str | None, str | None]:
-        """Handle inline content and update title/heading accordingly"""
-        if current_heading is None and len(sections) == 0:
-            # First heading is the title
-            return content, content
-        elif current_heading is None:
-            return title, content
-        else:
-            # Content under current heading
-            current_section_content.append(content)
-            return title, current_heading
 
     def extract_headings(self, tokens: list) -> list[str]:
         """Extract all headings from parsed tokens"""

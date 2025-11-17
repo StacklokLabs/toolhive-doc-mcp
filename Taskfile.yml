@@ -1,0 +1,102 @@
+version: '3'
+
+tasks:
+  install:
+    desc: Install dependencies
+    cmds:
+      - uv sync --dev --all-packages --group security
+
+  lint:
+    desc: Run linting with ruff
+    cmds:
+      - uv run ruff check .
+    deps:
+      - install
+
+  format:
+    desc: Fix linting issues and format code
+    cmds:
+      - uv run ruff format .
+      - uv run ruff check --fix .
+    deps:
+      - install
+
+  typecheck:
+    desc: Run type checking with ty
+    cmds:
+      - uv run ty check .
+    deps:
+      - install
+
+  test:
+    desc: Run unit tests with pytest
+    cmds:
+      - uv run pytest
+    deps:
+      - install
+
+  check:
+    desc: Run all checks (lint, typecheck, tests, and security)
+    deps:
+      - lint
+      - typecheck
+      - test
+      - security
+
+  security:
+    desc: Run security scanning
+    cmds:
+      # Note: safety tool has compatibility issues with current environment
+      # - uv run safety check --save-json safety-report.json || true
+      - uv run bandit -r src/ -f json -o bandit-report.json || true
+      - uv run pip-audit --format=json --output=pip-audit-report.json || true
+    deps:
+      - install
+
+  sbom:
+    desc: Generate Software Bill of Materials (SBOM)
+    cmds:
+      - uv run cyclonedx-py environment --output-format json --output-file sbom.json
+    deps:
+      - install
+
+  build:
+    desc: Build multi-architecture container image
+    cmds:
+      - docker buildx create --name toolhive-doc-mcp-builder --use --bootstrap || docker buildx use toolhive-doc-mcp-builder
+      - docker buildx build --platform linux/amd64,linux/arm64 -t toolhive-doc-mcp:latest --load .
+      - docker rm -f toolhive-doc-mcp-container || true
+
+  build-local:
+    desc: Build container image for local architecture only (faster for development)
+    cmds:
+      - docker build -t toolhive-doc-mcp:latest .
+      - docker rm -f toolhive-doc-mcp-container || true
+
+  run-container:
+    desc: Run the application in a container (builds for local arch only)
+    cmds:
+      - task: build-local
+      - docker run --name toolhive-doc-mcp-container toolhive-doc-mcp:latest
+
+  install-hooks:
+    desc: Install git hooks for the project
+    cmds:
+      - ./scripts/install-hooks.sh
+
+  run-locally:
+    desc: Run the application locally
+    env:
+      TOOLHIVE_HOST: "localhost"
+      TOOLHIVE_PORT: "8080"
+    cmds:
+      - uv run mtm
+    deps:
+      - install
+
+  run-in-thv:
+    desc: Build toolhive-doc-mcp and run it in ToolHive
+    cmds:
+      - thv rm toolhive-doc-mcp || true
+      - docker build -t toolhive-doc-mcp .
+      - thv run toolhive-doc-mcp:latest --transport streamable-http

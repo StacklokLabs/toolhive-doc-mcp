@@ -1,0 +1,35 @@
+# Documentation sources configuration - Example
+# Copy this file to sources.yaml and customize for your needs
+
+sources:
+  # Website sources - crawl and extract documentation from websites
+  websites:
+    - name: "Stacklok Toolhive Docs"
+      url: "https://docs.stacklok.com/toolhive"
+      path_prefix: "/toolhive"  # Limit crawling to this path
+      enabled: true
+
+  # GitHub repository sources - fetch markdown files from specific repos
+  github_repos:
+    - name: "Stacklok Minder GitHub Docs"
+      repo_owner: "stacklok"
+      repo_name: "toolhive"
+      branch: "main"  # Optional, defaults to default branch
+      paths:
+        - "docs/**/*.md"  # Glob patterns for markdown files
+        - "README.md"
+      enabled: true  # Set to true to enable
+
+# Fetching configuration (applies to all sources)
+fetching:
+  timeout: 30  # HTTP request timeout in seconds
+  max_retries: 3  # Maximum retry attempts for failed requests
+  concurrent_limit: 5  # Maximum concurrent HTTP requests
+  delay_ms: 100  # Delay between requests in milliseconds
+  max_depth: 5  # Maximum crawl depth for websites
+
+# GitHub API configuration
+github:
+  # You can also set the GITHUB_TOKEN environment variable
+  token: null
+  api_url: "https://api.github.com"  # GitHub API base URL

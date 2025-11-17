@@ -38,6 +38,9 @@ htmlcov/
 !README.md
 docs/
 
+# Include sources.yaml for build process
+!sources.yaml
+
 # Specify framework
 .specify/
 specs/
@@ -68,3 +71,11 @@ Taskfile.yml
 # Test files
 tests/
 test_*.py
+
+# Security scan reports
+bandit-report.json
+pip-audit-report.json
+*.sbom.json
+
+# GitHub token files (should never be in Docker context)
+.github_token

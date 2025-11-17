@@ -38,13 +38,11 @@ RUN chown app:app /app
 # Switch to non-root user
 USER app
 
-# Copy source code
+# Copy project files
+COPY --chown=app:app pyproject.toml uv.lock README.md ./
 COPY --chown=app:app src/ ./src/
 
 RUN --mount=type=cache,target=/home/app/.cache/uv,uid=1000,gid=1000 \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    --mount=type=bind,source=README.md,target=README.md \
     uv sync --package toolhive-doc-mcp --no-dev --locked --no-editable
 
 # Copy pre-built sqlite-vec extension
@@ -74,6 +72,29 @@ print('Downloading embedding model...'); \
 model = TextEmbedding(model_name='BAAI/bge-small-en-v1.5'); \
 print('Model downloaded successfully')"
 
+# Build documentation database stage
+FROM model-downloader AS db-builder
+
+# Switch to root to create data directory, then switch back to app user
+USER root
+RUN mkdir -p /app/data/website_cache && chown -R app:app /app/data
+USER app
+
+# Copy sources configuration
+COPY --chown=app:app sources.yaml /app/sources.yaml
+
+# Set environment variables for build process
+ENV FASTEMBED_CACHE_PATH=/app/.cache/fastembed
+ENV DOCS_WEBSITE_CACHE_PATH=/app/data/website_cache
+ENV VECTOR_DB_PATH=/app/data/docs.db
+
+# Run the build process to generate and embed documentation
+# Use --mount=type=secret for GITHUB_TOKEN to avoid exposing it in the image
+RUN --mount=type=cache,target=/app/.cache/uv,uid=1000,gid=1000 \
+    --mount=type=secret,id=github_token,uid=1000,gid=1000 \
+    GITHUB_TOKEN=$(cat /run/secrets/github_token 2>/dev/null || echo "") \
+    uv run --package toolhive-doc-mcp src/build.py
+
 FROM python:3.13-slim AS runner
 
 # Create non-root user (same as builder stage)
@@ -90,9 +111,8 @@ COPY --from=builder --chown=app:app /app/.venv /app/.venv
 # Copy pre-downloaded fastembed models
 COPY --from=model-downloader --chown=app:app /app/.cache/fastembed /app/.cache/fastembed
 
-# Create data directory and copy pre-built database
-RUN mkdir -p /app/data/website_cache && chown -R app:app /app/data
-COPY --chown=app:app ./data/docs.db /app/data/docs.db
+# Copy pre-built database and cache from db-builder stage
+COPY --from=db-builder --chown=app:app /app/data /app/data
 
 # Switch to non-root user
 USER app

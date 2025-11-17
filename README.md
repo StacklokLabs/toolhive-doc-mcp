@@ -129,6 +129,88 @@ curl -X POST http://localhost:8080/sse \
   }'
 ```
 
+## Docker Deployment
+
+The Docker image includes the pre-built documentation database, making it ready to use immediately after building.
+
+### Building the Docker Image
+
+#### Basic Build (without GitHub token)
+
+```bash
+docker build -t toolhive-doc-mcp:latest .
+```
+
+Note: Without a GitHub token, you may hit API rate limits (60 requests/hour). The build will still work but may fail to fetch some GitHub-based documentation sources.
+
+#### Build with GitHub Token (Recommended)
+
+For higher rate limits (5,000 requests/hour) and successful fetching of all sources:
+
+1. Create a GitHub personal access token at https://github.com/settings/tokens (no special scopes needed for public repos)
+
+2. Build with the token using Docker secrets (secure method):
+
+```bash
+# Save token to a file
+echo "your_token_here" > .github_token
+
+# Build with the secret
+docker build --secret id=github_token,src=.github_token -t toolhive-doc-mcp:latest .
+
+# Clean up the token file
+rm .github_token
+```
+
+Or use an environment variable with Docker secrets:
+
+```bash
+export GITHUB_TOKEN=your_token_here
+echo "$GITHUB_TOKEN" | docker build --secret id=github_token,src=/dev/stdin -t toolhive-doc-mcp:latest .
+```
+
+Note: This method uses Docker BuildKit secrets, which keeps your token out of the image layers and build history, improving security.
+
+### Running the Docker Container
+
+```bash
+docker run -p 8080:8080 toolhive-doc-mcp:latest
+```
+
+The MCP server will be available at `http://localhost:8080`
+
+### Docker Build Process
+
+The Docker build performs the following steps:
+
+1. **sqlite-vec-builder stage**: Compiles the sqlite-vec extension
+2. **builder stage**: Installs Python dependencies using uv
+3. **model-downloader stage**: Pre-downloads the embedding model (BAAI/bge-small-en-v1.5)
+4. **db-builder stage**: Runs `src/build.py` to:
+   - Fetch documentation from all configured sources
+   - Parse and chunk the content
+   - Generate embeddings
+   - Build the SQLite vector database
+5. **runner stage**: Creates the final minimal image with:
+   - The pre-built database
+   - The cached embedding model
+   - The MCP server
+
+### Customizing Documentation Sources
+
+To customize which documentation sources are included in the Docker image:
+
+1. Edit `sources.yaml` before building
+2. Enable/disable sources as needed
+3. Build the Docker image with your customized configuration
+
+### Multi-stage Build Benefits
+
+- **Smaller final image**: Build dependencies are not included in the runtime image
+- **Ready to use**: Database is pre-built during image creation
+- **Faster startup**: No need to download models or build database at runtime
+- **Reproducible**: Same image always contains the same documentation snapshot
+
 ## Development
 
 ### Run Tests

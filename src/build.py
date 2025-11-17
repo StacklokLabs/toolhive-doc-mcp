@@ -280,7 +280,7 @@ async def _process_html_file(html_file, url_to_hash, html_parser, chunker):
     """Process a single HTML file and return chunks"""
     html_content = html_file.read_text(encoding="utf-8")
     url_hash = html_file.stem
-    source_url = url_to_hash.get(url_hash, f"unknown-{url_hash}")
+    source_url = url_to_hash.get(url_hash, f"https://unknown.local/{url_hash}")
 
     # Parse HTML content
     parsed_html = html_parser.parse(html_content, source_url, validation=False)

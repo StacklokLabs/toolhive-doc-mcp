@@ -61,9 +61,27 @@ class DocSync:
         self.chunker = chunker or Chunker()
         self.embedder = embedder or Embedder()
         self.vector_store = vector_store
-        self.cache_dir = Path(config.docs_website_cache_path)
-        self.pages_dir = self.cache_dir / "pages"
-        self.metadata_file = self.cache_dir / "metadata.json"
+        self._cache_dir = Path(config.docs_website_cache_path)
+
+    @property
+    def cache_dir(self) -> Path:
+        """Get the cache directory path"""
+        return self._cache_dir
+
+    @cache_dir.setter
+    def cache_dir(self, value: str | Path) -> None:
+        """Set the cache directory path"""
+        self._cache_dir = Path(value)
+
+    @property
+    def pages_dir(self) -> Path:
+        """Get the pages directory path (derived from cache_dir)"""
+        return self.cache_dir / "pages"
+
+    @property
+    def metadata_file(self) -> Path:
+        """Get the metadata file path (derived from cache_dir)"""
+        return self.cache_dir / "metadata.json"
 
     async def sync_docs(
         self, *, force_refresh: bool = False, incremental: bool = True
@@ -104,6 +122,7 @@ class DocSync:
                 pages_failed,
                 failed_urls,
                 total_bytes,
+                cache_metadata,
             ) = await self._fetch_and_process_pages(urls_to_fetch, cache_metadata)
 
             # Update cache metadata and stats
@@ -157,7 +176,7 @@ class DocSync:
 
     async def _fetch_and_process_pages(
         self, urls_to_fetch: list[HttpUrl], cache_metadata: CacheMetadata | None
-    ) -> tuple[int, int, list[str], int]:
+    ) -> tuple[int, int, list[str], int, CacheMetadata]:
         """Fetch pages and process them into cache and vector store"""
         fetch_results = await self.fetcher.fetch_multiple(
             urls_to_fetch, use_cache=False, fail_fast=False
@@ -186,7 +205,7 @@ class DocSync:
                 failed_urls.append(str(result.url))
                 logger.warning(f"✗ Failed to fetch {result.url}: {result.error_message}")
 
-        return pages_updated, pages_failed, failed_urls, total_bytes
+        return pages_updated, pages_failed, failed_urls, total_bytes, cache_metadata
 
     async def _process_successful_fetch(self, result, cache_metadata: CacheMetadata) -> None:
         """Process a successfully fetched page"""

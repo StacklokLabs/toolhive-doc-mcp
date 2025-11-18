@@ -32,11 +32,12 @@ jobs:
           github_token=${{ secrets.GITHUB_TOKEN }}
 
     - name: Upload database artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
       with:
         name: prebuilt-database
         path: ./build-output/app/data
         retention-days: 1
+        overwrite: true
 
   build:
     name: Build Multi-Platform Docker Image

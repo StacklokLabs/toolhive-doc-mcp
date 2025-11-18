@@ -42,6 +42,9 @@ USER app
 COPY --chown=app:app pyproject.toml uv.lock README.md ./
 COPY --chown=app:app src/ ./src/
 
+# Set link mode to copy to avoid hardlink warnings across filesystems
+ENV UV_LINK_MODE=copy
+
 RUN --mount=type=cache,target=/home/app/.cache/uv,uid=1000,gid=1000 \
     uv sync --package toolhive-doc-mcp --no-dev --locked --no-editable
 

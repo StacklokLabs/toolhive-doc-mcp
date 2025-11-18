@@ -75,7 +75,7 @@ print('Downloading embedding model...'); \
 model = TextEmbedding(model_name='BAAI/bge-small-en-v1.5'); \
 print('Model downloaded successfully')"
 
-# Build documentation database stage
+# Build documentation database stage (optional - can be skipped if pre-built data provided)
 FROM model-downloader AS db-builder
 
 # Switch to root to create data directory, then switch back to app user
@@ -93,12 +93,14 @@ ENV VECTOR_DB_PATH=/app/data/docs.db
 
 # Run the build process to generate and embed documentation
 # Use --mount=type=secret for GITHUB_TOKEN to avoid exposing it in the image
+# This stage can be skipped if pre-built data is provided via build context
 RUN --mount=type=cache,target=/app/.cache/uv,uid=1000,gid=1000 \
     --mount=type=secret,id=github_token,uid=1000,gid=1000 \
     GITHUB_TOKEN=$(cat /run/secrets/github_token 2>/dev/null || echo "") \
     uv run --package toolhive-doc-mcp src/build.py
 
-FROM python:3.13-slim AS runner
+# Base runner stage - common setup for both build variants
+FROM python:3.13-slim AS runner-base
 
 # Create non-root user (same as builder stage)
 RUN groupadd --gid 1000 app && \
@@ -114,9 +116,6 @@ COPY --from=builder --chown=app:app /app/.venv /app/.venv
 # Copy pre-downloaded fastembed models
 COPY --from=model-downloader --chown=app:app /app/.cache/fastembed /app/.cache/fastembed
 
-# Copy pre-built database and cache from db-builder stage
-COPY --from=db-builder --chown=app:app /app/data /app/data
-
 # Switch to non-root user
 USER app
 
@@ -129,3 +128,13 @@ ENV VECTOR_DB_PATH=/app/data/docs.db
 
 # Run the MCP server using the console script entry point
 CMD ["/app/.venv/bin/toolhive-doc-mcp"]
+
+# Default runner - builds database during image build (slower for multi-platform)
+FROM runner-base AS runner
+COPY --from=db-builder --chown=app:app /app/data /app/data
+
+# Pre-built runner - uses external pre-built database (faster for multi-platform)
+# Usage: --build-context prebuilt-data=./path/to/data --target runner-prebuilt
+FROM scratch AS prebuilt-data
+FROM runner-base AS runner-prebuilt
+COPY --from=prebuilt-data --chown=app:app / /app/data/

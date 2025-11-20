@@ -70,14 +70,14 @@ tasks:
   build-local:
     desc: Build container image for local architecture only (faster for development)
     cmds:
+      - docker rm -f toolhive-doc-mcp-container 2>/dev/null || true
       - docker build -t toolhive-doc-mcp:latest .
-      - docker rm -f toolhive-doc-mcp-container || true
 
   run-container:
     desc: Run the application in a container (builds for local arch only)
     cmds:
       - task: build-local
-      - docker run --name toolhive-doc-mcp-container toolhive-doc-mcp:latest
+      - docker run -d --name toolhive-doc-mcp-container toolhive-doc-mcp:latest
 
   install-hooks:
     desc: Install git hooks for the project

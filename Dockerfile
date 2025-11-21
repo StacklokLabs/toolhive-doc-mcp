@@ -77,8 +77,8 @@ USER app
 ENV FASTEMBED_CACHE_PATH=/app/.cache/fastembed
 
 # Pre-download the embedding model by instantiating TextEmbedding
-# Note: UV cache mount removed as it's not needed for running Python
-RUN /app/.venv/bin/python -c "\
+RUN --mount=type=cache,target=/app/.cache/uv,uid=1000,gid=1000 \
+    /app/.venv/bin/python -c "\
 import os; \
 print(f'FASTEMBED_CACHE_PATH: {os.environ.get(\"FASTEMBED_CACHE_PATH\")}'); \
 from fastembed import TextEmbedding; \

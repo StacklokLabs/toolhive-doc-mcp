@@ -68,9 +68,11 @@ USER app
 # Pre-download fastembed models
 FROM builder AS model-downloader
 
-# Switch to root to create cache directory, then switch back to app user
+# Switch to root to create cache directories, then switch back to app user
+# huggingface_hub needs /home/app/.cache for xet logging and downloads
 USER root
-RUN mkdir -p /app/.cache/fastembed && chown -R app:app /app/.cache
+RUN mkdir -p /app/.cache/fastembed /home/app/.cache && \
+    chown -R app:app /app/.cache /home/app/.cache
 USER app
 
 # Set cache directory for fastembed models

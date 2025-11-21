@@ -10,6 +10,9 @@ jobs:
   code_quality:
     name: Code Quality
     uses: ./.github/workflows/code-quality.yml
+  security:
+    name: Security Scan
+    uses: ./.github/workflows/security.yml
   image_build:
     name: Build Docker Image
     uses: ./.github/workflows/image-build.yml

@@ -20,7 +20,7 @@ jobs:
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
     - name: Run Trivy vulnerability scanner in fs mode
-      uses: aquasecurity/trivy-action@b6643a20c15d7c1e9eb617c1e0c34224f5d8c4e9 # v0.33.1
+      uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
       with:
         scan-type: 'fs'
         scan-ref: '.'
@@ -38,7 +38,7 @@ jobs:
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
     - name: Run Trivy configuration scanner
-      uses: aquasecurity/trivy-action@b6643a20c15d7c1e9eb617c1e0c34224f5d8c4e9 # v0.33.1
+      uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
       with:
         scan-type: 'config'
         scan-ref: '.'

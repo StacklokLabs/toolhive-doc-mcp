@@ -1,22 +1,23 @@
+# syntax=docker/dockerfile:1.4
 # SQLite-vec builder stage - separate stage for better caching
 FROM python:3.13-slim AS sqlite-vec-builder
 
 # Install build dependencies for compiling sqlite-vec
-RUN apt-get update && apt-get install -y \
+# build-essential includes gcc and make, so they're not needed separately
+# gettext-base provides envsubst which is required by sqlite-vec build
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    gcc \
-    make \
     git \
-    gettext \
+    gettext-base \
     libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Build sqlite-vec extension with cache mount for git and build artifacts
-RUN --mount=type=cache,target=/var/cache/git \
-    --mount=type=cache,target=/tmp/sqlite-vec-build \
-    cd /tmp \
-    && git clone --depth 1 --branch v0.1.6 https://github.com/asg017/sqlite-vec.git \
-    && cd sqlite-vec \
+# Build sqlite-vec extension pinned to specific commit for reproducibility
+# v0.1.6 tag points to commit 639fca5739fe056fdc98f3d539c4cd79328d7dc7
+WORKDIR /tmp
+RUN git clone https://github.com/asg017/sqlite-vec.git
+WORKDIR /tmp/sqlite-vec
+RUN git checkout 639fca5739fe056fdc98f3d539c4cd79328d7dc7 \
     && make loadable \
     && mkdir -p /sqlite-vec-dist \
     && cp dist/vec0.* /sqlite-vec-dist/
@@ -38,28 +39,40 @@ RUN chown app:app /app
 # Switch to non-root user
 USER app
 
-# Copy project files
-COPY --chown=app:app pyproject.toml uv.lock README.md ./
-COPY --chown=app:app src/ ./src/
+# Copy only dependency files first for better cache utilization
+# This layer is cached unless pyproject.toml or uv.lock changes
+COPY --chown=app:app pyproject.toml uv.lock ./
 
 # Set link mode to copy to avoid hardlink warnings across filesystems
 ENV UV_LINK_MODE=copy
 
+# Install dependencies (cached layer unless lock file changes)
 RUN --mount=type=cache,target=/home/app/.cache/uv,uid=1000,gid=1000 \
     uv sync --package toolhive-doc-mcp --no-dev --locked --no-editable
 
-# Copy pre-built sqlite-vec extension
-COPY --from=sqlite-vec-builder /sqlite-vec-dist/vec0.so /app/.venv/lib/python3.13/site-packages/sqlite_vec/vec0.so
+# Copy source code after dependencies (doesn't invalidate dependency cache)
+COPY --chown=app:app README.md ./
+COPY --chown=app:app src/ ./src/
+
+# Copy pre-built sqlite-vec extension using dynamic path resolution
+# This avoids hardcoding Python version in the path
+COPY --from=sqlite-vec-builder /sqlite-vec-dist/vec0.so /tmp/vec0.so
 USER root
-RUN chown app:app /app/.venv/lib/python3.13/site-packages/sqlite_vec/vec0.so
+RUN PYTHON_SITE_PACKAGES=$(/app/.venv/bin/python -c "import sysconfig; print(sysconfig.get_path('purelib'))") \
+    && mkdir -p "${PYTHON_SITE_PACKAGES}/sqlite_vec" \
+    && cp /tmp/vec0.so "${PYTHON_SITE_PACKAGES}/sqlite_vec/vec0.so" \
+    && chown app:app "${PYTHON_SITE_PACKAGES}/sqlite_vec/vec0.so" \
+    && rm /tmp/vec0.so
 USER app
 
 # Pre-download fastembed models
 FROM builder AS model-downloader
 
-# Switch to root to create cache directory, then switch back to app user
+# Switch to root to create cache directories, then switch back to app user
+# huggingface_hub needs /home/app/.cache for xet logging and downloads
 USER root
-RUN mkdir -p /app/.cache/fastembed && chown -R app:app /app/.cache
+RUN mkdir -p /app/.cache/fastembed /home/app/.cache && \
+    chown -R app:app /app/.cache /home/app/.cache
 USER app
 
 # Set cache directory for fastembed models
@@ -103,7 +116,7 @@ RUN --mount=type=cache,target=/app/.cache/uv,uid=1000,gid=1000 \
 FROM python:3.13-slim AS runner-base
 
 # Install curl for health checks
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 

@@ -54,6 +54,10 @@ RUN --mount=type=cache,target=/home/app/.cache/uv,uid=1000,gid=1000 \
 COPY --chown=app:app README.md ./
 COPY --chown=app:app src/ ./src/
 
+# Reinstall the package now that source code is present
+RUN --mount=type=cache,target=/home/app/.cache/uv,uid=1000,gid=1000 \
+    uv sync --package toolhive-doc-mcp --no-dev --locked --no-editable
+
 # Copy pre-built sqlite-vec extension using dynamic path resolution
 # This avoids hardcoding Python version in the path
 COPY --from=sqlite-vec-builder /sqlite-vec-dist/vec0.so /tmp/vec0.so

@@ -12,6 +12,7 @@ from src.config import config
 from src.models.query import Query, QueryType
 from src.models.search_result import QueryDocsOutput
 from src.services.search import SearchService
+from src.services.telemetry import get_telemetry_service
 from src.services.vector_store import VectorStore
 
 # Initialize fastmcp server
@@ -60,28 +61,54 @@ async def query_docs(
     Returns:
         QueryDocsOutput: Search results with metadata
     """
-    # Get services
-    _, search_service = await _get_services()
+    telemetry = get_telemetry_service()
+    error: Exception | None = None
+    response = None
 
-    # Validate query_type
     try:
-        qt = QueryType(query_type)
-    except ValueError as e:
-        raise McpError(
-            ErrorData(
-                code=-32602,
-                message=f"Invalid query_type: {query_type}. Must be: semantic, keyword, or hybrid",
-            )
-        ) from e
+        # Get services
+        _, search_service = await _get_services()
 
-    # Create query object
-    query_obj = Query(text=query, limit=limit, query_type=qt, min_score=min_score)
+        # Validate query_type
+        try:
+            qt = QueryType(query_type)
+        except ValueError as e:
+            error = e
+            raise McpError(
+                ErrorData(
+                    code=-32602,
+                    message=(
+                        f"Invalid query_type: {query_type}. "
+                        "Must be: semantic, keyword, or hybrid"
+                    ),
+                )
+            ) from e
 
-    # Execute search
-    try:
-        return await search_service.query(query_obj)
-    except Exception as e:
-        raise McpError(ErrorData(code=-32603, message=f"Search failed: {str(e)}")) from e
+        # Create query object
+        query_obj = Query(text=query, limit=limit, query_type=qt, min_score=min_score)
+
+        # Execute search
+        try:
+            result = await search_service.query(query_obj)
+            response = result.model_dump()
+            return result
+        except Exception as e:
+            error = e
+            raise McpError(ErrorData(code=-32603, message=f"Search failed: {str(e)}")) from e
+
+    finally:
+        # Log telemetry regardless of success/failure
+        telemetry.log_query(
+            tool_name="query_docs",
+            query=query,
+            parameters={
+                "limit": limit,
+                "query_type": query_type,
+                "min_score": min_score,
+            },
+            response=response,
+            error=error,
+        )
 
 
 @mcp.tool()
@@ -94,24 +121,42 @@ async def get_chunk(chunk_id: str) -> dict[str, Any]:
     Returns:
         dict: Chunk details including content, source, and metadata
     """
-    # Validate UUID format
+    telemetry = get_telemetry_service()
+    error: Exception | None = None
+    response = None
+
     try:
-        UUID(chunk_id)
-    except ValueError as e:
-        raise McpError(
-            ErrorData(code=-32602, message=f"chunk_id must be a valid UUID, got: {chunk_id}")
-        ) from e
+        # Validate UUID format
+        try:
+            UUID(chunk_id)
+        except ValueError as e:
+            error = e
+            raise McpError(
+                ErrorData(code=-32602, message=f"chunk_id must be a valid UUID, got: {chunk_id}")
+            ) from e
 
-    # Get vector store
-    vector_store, _ = await _get_services()
+        # Get vector store
+        vector_store, _ = await _get_services()
 
-    # Fetch chunk
-    chunk = await vector_store.get_chunk(chunk_id)
+        # Fetch chunk
+        chunk = await vector_store.get_chunk(chunk_id)
 
-    if not chunk:
-        raise McpError(ErrorData(code=-32002, message=f"Chunk with ID {chunk_id} not found"))
+        if not chunk:
+            error = ValueError(f"Chunk with ID {chunk_id} not found")
+            raise McpError(ErrorData(code=-32002, message=f"Chunk with ID {chunk_id} not found"))
 
-    return chunk.model_dump()
+        response = chunk.model_dump()
+        return response
+
+    finally:
+        # Log telemetry regardless of success/failure
+        telemetry.log_query(
+            tool_name="get_chunk",
+            query=None,
+            parameters={"chunk_id": chunk_id},
+            response=response,
+            error=error,
+        )
 
 
 # Health check endpoint

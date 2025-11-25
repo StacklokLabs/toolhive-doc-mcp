@@ -135,6 +135,10 @@ class TelemetryService:
                     if "content" in response:
                         attributes["response.content_length"] = len(response["content"])
 
+                        # Store full chunk for analytics (if enabled)
+                        if config.otel_log_full_results:
+                            attributes["response.chunk_json"] = json.dumps(response, default=str)
+
             # Add error information (error types are low cardinality)
             if error:
                 attributes["error.type"] = type(error).__name__
@@ -159,6 +163,10 @@ class TelemetryService:
                 truncated_query = query if len(query) <= 200 else query[:200] + "..."
                 log_body_parts.append(f'query="{truncated_query}"')
 
+                # Store full query text for analytics (if enabled)
+                if config.otel_log_full_results:
+                    attributes["query.full_text"] = query
+
             # Add chunk_id if present (bounded UUID)
             if "chunk_id" in parameters:
                 log_body_parts.append(f'chunk_id={parameters["chunk_id"]}')
@@ -169,6 +177,12 @@ class TelemetryService:
                 query_info = response.get("query_info", {})
                 query_time = query_info.get("query_time_ms", 0)
                 log_body_parts.append(f"results={result_count} time={query_time:.1f}ms")
+
+                # Add full results for analytics (if enabled)
+                if config.otel_log_full_results:
+                    results = response.get("results", [])
+                    # Store full results as JSON in attributes for analytics
+                    attributes["response.results_json"] = json.dumps(results, default=str)
 
             if error:
                 log_body_parts.append(f"error={type(error).__name__}")

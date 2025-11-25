@@ -58,6 +58,19 @@ class AppConfig(BaseSettings):
         default=5, ge=1, le=50, description="Default maximum number of search results"
     )
 
+    # OpenTelemetry
+    otel_enabled: bool = Field(default=True, description="Enable OpenTelemetry logging")
+    otel_endpoint: str = Field(
+        default="http://otel-collector.otel.svc.cluster.local:4318",
+        description="OpenTelemetry collector endpoint (HTTP/protobuf)",
+    )
+    otel_service_name: str = Field(
+        default="toolhive-doc-mcp", description="Service name for OpenTelemetry"
+    )
+    otel_service_version: str = Field(
+        default="1.0.0", description="Service version for OpenTelemetry"
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
     )

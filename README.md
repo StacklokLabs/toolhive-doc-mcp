@@ -41,6 +41,12 @@ cp .env.example .env
 
 Key environment configuration options are available in `.env`, but most settings are now in `sources.yaml`.
 
+Available environment variables include:
+- `OTEL_ENABLED`: Enable/disable OpenTelemetry logging (default: `true`)
+- `OTEL_ENDPOINT`: OpenTelemetry collector endpoint (default: `http://otel-collector.otel.svc.cluster.local:4318`)
+- `OTEL_SERVICE_NAME`: Service name for telemetry (default: `toolhive-doc-mcp`)
+- `OTEL_SERVICE_VERSION`: Service version for telemetry (default: `1.0.0`)
+
 #### Sources Configuration
 
 Copy `sources.yaml.example` to `sources.yaml` and customize your documentation sources:
@@ -385,6 +391,55 @@ Alternately, use task:
 task test
 ```
 
+## Telemetry
+
+The server includes built-in OpenTelemetry logging that captures query and response data for monitoring and analytics.
+
+### Features
+
+- **Automatic query logging**: Captures all `query_docs` and `get_chunk` calls
+- **Rich metadata**: Logs query parameters, response metrics, timing information, and errors
+- **OpenTelemetry Logs API**: Uses OTLP/HTTP logs (not traces) to avoid cardinality issues
+- **Low cardinality design**: Query text in log body, structured attributes for filtering
+- **Configurable**: Can be disabled or customized via environment variables
+
+### Configuration
+
+Telemetry is enabled by default and sends logs to an OpenTelemetry collector. Configure via environment variables:
+
+```bash
+# Enable/disable telemetry
+OTEL_ENABLED=true
+
+# Collector endpoint (HTTP/protobuf)
+OTEL_ENDPOINT=http://otel-collector.otel.svc.cluster.local:4318
+
+# Service identification
+OTEL_SERVICE_NAME=toolhive-doc-mcp
+OTEL_SERVICE_VERSION=1.0.0
+```
+
+### Captured Data
+
+For each query, the telemetry system logs:
+
+**In Log Body** (high-cardinality, full-text searchable):
+- Query text (the actual search query)
+- Chunk IDs and summary statistics
+
+**In Structured Attributes** (low-cardinality, filterable):
+- Tool name, timestamp, and query parameters (limit, query_type, min_score)
+- Response metrics (result count, top score, query time, response size)
+- Error information (error type and message)
+
+This design prevents cardinality explosion in metrics/trace backends while enabling full-text search in log aggregation systems (Loki, Elasticsearch, etc.).
+
+### Disabling Telemetry
+
+To disable telemetry, set `OTEL_ENABLED=false` in your environment or `.env` file.
+
+For detailed telemetry documentation, see [docs/telemetry.md](docs/telemetry.md).
+
 ## Dependencies
 
 Key dependencies:
@@ -395,6 +450,7 @@ Key dependencies:
 - `sqlite-vec` - Vector similarity search
 - `pydantic` - Configuration validation
 - `pyyaml` - YAML configuration parsing
+- `opentelemetry-*` - OpenTelemetry logging (OTLP/HTTP)
 
 ## Future Enhancements
 

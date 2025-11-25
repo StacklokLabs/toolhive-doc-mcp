@@ -195,10 +195,9 @@ class TelemetryService:
         self, body: str, severity_number: int, attributes: dict[str, str | int | float | bool]
     ) -> Any:
         """Create a log record with the given parameters"""
-        from opentelemetry.sdk._logs import LogRecord
-
         # Convert severity_number to SeverityNumber enum
         from opentelemetry._logs import SeverityNumber
+        from opentelemetry.sdk._logs import LogRecord
 
         return LogRecord(
             timestamp=int(datetime.now(timezone.utc).timestamp() * 1e9),  # nanoseconds

@@ -70,6 +70,10 @@ class AppConfig(BaseSettings):
     otel_service_version: str = Field(
         default="1.0.0", description="Service version for OpenTelemetry"
     )
+    otel_log_full_results: bool = Field(
+        default=True,
+        description="Include full query results in telemetry logs (needed for analytics)",
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"

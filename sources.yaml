@@ -9,7 +9,7 @@ sources:
       path_prefix: "/toolhive"  # Limit crawling to this path
       enabled: true
 
-  # GitHub repository sources - fetch markdown files from specific repos
+  # GitHub repository sources - fetch markdown, YAML, and JSON files from specific repos
   github_repos:
     - name: "Toolhive Repo Docs"
       repo_owner: "stacklok"
@@ -18,6 +18,11 @@ sources:
       paths:
         - "docs/**/*.md"  # Glob patterns for markdown files
         - "README.md"
+        - "examples/**/*.yaml"  # YAML example files
+        - "examples/**/*.yml"  # YAML example files (alternative extension)
+        - "examples/**/*.json"  # JSON example files
+        - "**/*.yaml.example"  # Example files with .example suffix
+        - "**/*.json.example"  # Example files with .example suffix
       enabled: true
 
     - name: "Toolhive Studio Docs"
@@ -27,6 +32,23 @@ sources:
       paths:
         - "docs/**/*.md"  # Glob patterns for markdown files
         - "README.md"
+        - "examples/**/*.yaml"  # YAML example files
+        - "examples/**/*.yml"  # YAML example files (alternative extension)
+        - "examples/**/*.json"  # JSON example files
+        - "**/*.yaml.example"  # Example files with .example suffix
+        - "**/*.json.example"  # Example files with .example suffix
+      enabled: true
+
+    - name: "Toolhive Registry"
+      repo_owner: "stacklok"
+      repo_name: "toolhive-registry"
+      branch: "main"  # Optional, defaults to default branch
+      paths:
+        - "docs/**/*.md"  # Documentation files
+        - "README.md"
+        - "CONTRIBUTING.md"
+        - "registry/**/*.yaml"  # Registry spec files
+        - "registry/**/*.yml"  # Registry spec files (alternative extension)
       enabled: true
 
 # Fetching configuration (applies to all sources)

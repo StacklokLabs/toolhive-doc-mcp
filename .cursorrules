@@ -1,0 +1,29 @@
+# Code Quality Requirements
+
+## Linting and Code Checks
+
+**CRITICAL**: All pull requests MUST pass linting checks before being merged.
+
+Before committing code or creating a PR:
+
+1. **Run linting checks**: `uv run ruff check src/`
+2. **Auto-fix linting issues**: `uv run ruff check src/ --fix`
+3. **Verify all checks pass**: `uv run ruff check src/`
+
+The linter enforces:
+- Line length (max 100 characters)
+- Code complexity (max complexity score of 10)
+- Unused imports
+- Code style (PEP 8 via pycodestyle)
+- Code quality (flake8, bugbear)
+
+**Never commit code that fails linting checks.** Always fix linting issues before creating or updating a PR.
+
+## Project Context
+
+toolhive-doc-mcp is an MCP server for semantic search over Stacklok documentation using vector embeddings.
+
+Documentation sources are configured in `sources.yaml`. See `sources.yaml.example` for reference.
+
+For more details, see `CLAUDE.md`.
+

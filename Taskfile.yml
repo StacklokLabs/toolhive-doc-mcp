@@ -60,6 +60,13 @@ tasks:
     deps:
       - install
 
+  build-db:
+    desc: Build documentation database (fetch, parse, chunk, embed, and index)
+    cmds:
+      - uv run python src/build.py
+    deps:
+      - install
+
   build:
     desc: Build multi-architecture container image
     cmds:

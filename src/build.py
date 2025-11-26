@@ -4,6 +4,8 @@ import asyncio
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from src.config import config
 from src.models.source import DocumentationSource
 from src.services.chunker import Chunker
@@ -161,14 +163,14 @@ async def _parse_and_chunk_all_sources(chunker, sources_config):
         total_files += website_files
         print(f"  ✓ Created {len(website_chunks)} chunks from {website_files} HTML pages")
 
-    # Process GitHub markdown files
+    # Process GitHub markdown, YAML, and JSON files
     enabled_repos = sources_config.get_enabled_github_repos()
     if enabled_repos:
-        print(f"\nProcessing markdown from {len(enabled_repos)} GitHub source(s)...")
+        print(f"\nProcessing files from {len(enabled_repos)} GitHub source(s)...")
         github_chunks, github_files = await _parse_and_chunk_github(chunker, enabled_repos)
         all_chunks.extend(github_chunks)
         total_files += github_files
-        print(f"  ✓ Created {len(github_chunks)} chunks from {github_files} markdown files")
+        print(f"  ✓ Created {len(github_chunks)} chunks from {github_files} files")
 
     print(f"\n✓ Total: {len(all_chunks)} chunks from {total_files} files")
     return all_chunks, total_files
@@ -209,10 +211,12 @@ async def _parse_and_chunk_websites(chunker):
 
 
 async def _parse_and_chunk_github(chunker, github_sources):
-    """Parse and chunk all markdown files from GitHub repositories"""
+    """Parse and chunk markdown, YAML, and JSON files from GitHub repositories"""
     from src.services.doc_parser import DocParser
+    from src.services.example_parser import ExampleParser
 
     doc_parser = DocParser()
+    example_parser = ExampleParser()
     all_chunks = []
     total_files = 0
 
@@ -227,18 +231,43 @@ async def _parse_and_chunk_github(chunker, github_sources):
 
         # Find all markdown files
         md_files = list(cache_dir.glob("**/*.md"))
-        total_files += len(md_files)
+        # Find all YAML files (including .example files)
+        yaml_files = (
+            list(cache_dir.glob("**/*.yaml"))
+            + list(cache_dir.glob("**/*.yml"))
+            + list(cache_dir.glob("**/*.yaml.example"))
+            + list(cache_dir.glob("**/*.yml.example"))
+        )
+        # Find all JSON files (including .example files)
+        json_files = list(cache_dir.glob("**/*.json")) + list(cache_dir.glob("**/*.json.example"))
 
-        for i, md_file in enumerate(md_files, start=1):
+        all_files = md_files + yaml_files + json_files
+        total_files += len(all_files)
+
+        for i, file_path in enumerate(all_files, start=1):
             try:
-                # Read markdown content
-                md_content = md_file.read_text(encoding="utf-8")
+                # Read file content
+                file_content = file_path.read_text(encoding="utf-8")
 
-                # Parse markdown
-                parsed = await doc_parser.parse(md_content)
+                # Determine parser based on file extension
+                # Handle .example suffix files (e.g., config.yaml.example)
+                ext = file_path.suffix.lower()
+                if ext == ".example":
+                    # Get the previous extension (e.g., .yaml from config.yaml.example)
+                    ext = Path(file_path.stem).suffix.lower()
+
+                if ext == ".md":
+                    # Parse markdown
+                    parsed = await doc_parser.parse(file_content)
+                elif ext in (".yaml", ".yml", ".json"):
+                    # Parse YAML or JSON
+                    parsed = await example_parser.parse(file_path, file_content)
+                else:
+                    # Skip unknown file types
+                    continue
 
                 # Create source URL (GitHub file URL)
-                relative_path = md_file.relative_to(cache_dir)
+                relative_path = file_path.relative_to(cache_dir)
                 source_url = (
                     f"https://github.com/{source.repo_owner}/{source.repo_name}/"
                     f"blob/{source.branch or 'main'}/{relative_path}"
@@ -249,11 +278,11 @@ async def _parse_and_chunk_github(chunker, github_sources):
                 all_chunks.extend(chunks)
 
                 # Progress update
-                if i % 10 == 0 or i == len(md_files):
-                    print(f"    Processed {i}/{len(md_files)} markdown files from {source.name}...")
+                if i % 10 == 0 or i == len(all_files):
+                    print(f"    Processed {i}/{len(all_files)} files from {source.name}...")
 
             except Exception as e:
-                print(f"    ⚠ Warning: Failed to process {md_file.name}: {e}")
+                print(f"    ⚠ Warning: Failed to process {file_path.name}: {e}")
                 continue
 
     return all_chunks, total_files
@@ -426,6 +455,11 @@ async def build(sources_config_path: str = "sources.yaml"):
     Args:
         sources_config_path: Path to sources configuration YAML file
     """
+    # Load .env file first (won't override existing env vars)
+    if Path(".env").exists():
+        load_dotenv()
+        print("✓ Loaded environment variables from .env file")
+
     print("=" * 80)
     print("Documentation Build Process Starting")
     print("=" * 80)

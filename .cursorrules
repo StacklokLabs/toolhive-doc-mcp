@@ -1,0 +1,11 @@
+# Cursor Rules for toolhive-doc-mcp
+
+**IMPORTANT**: Before working on code, read and follow the guidelines in `CLAUDE.md`.
+
+The `CLAUDE.md` file contains:
+- Code quality requirements (linting, complexity, style)
+- Build and development commands
+- Project overview and configuration details
+
+Always ensure PRs pass linting checks before committing. See `CLAUDE.md` for details.
+

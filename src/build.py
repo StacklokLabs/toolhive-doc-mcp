@@ -4,6 +4,8 @@ import asyncio
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from src.config import config
 from src.models.source import DocumentationSource
 from src.services.chunker import Chunker
@@ -426,6 +428,11 @@ async def build(sources_config_path: str = "sources.yaml"):
     Args:
         sources_config_path: Path to sources configuration YAML file
     """
+    # Load .env file first (won't override existing env vars)
+    if Path(".env").exists():
+        load_dotenv()
+        print("✓ Loaded environment variables from .env file")
+
     print("=" * 80)
     print("Documentation Build Process Starting")
     print("=" * 80)

@@ -2,7 +2,6 @@
 
 import json
 from pathlib import Path
-from typing import Any
 
 import yaml
 
@@ -98,11 +97,16 @@ class ExampleParser:
 
             full_text = "\n\n".join(text_parts)
 
+            top_level_keys = list(data.keys()) if isinstance(data, dict) else []
             return ParsedContent(
                 text=full_text,
                 title=file_name,
                 sections=sections,
-                metadata={"file_type": "yaml", "parsed": True, "top_level_keys": list(data.keys()) if isinstance(data, dict) else []},
+                metadata={
+                    "file_type": "yaml",
+                    "parsed": True,
+                    "top_level_keys": top_level_keys,
+                },
             )
 
         except yaml.YAMLError as e:
@@ -139,11 +143,16 @@ class ExampleParser:
 
             full_text = "\n\n".join(text_parts)
 
+            top_level_keys = list(data.keys()) if isinstance(data, dict) else []
             return ParsedContent(
                 text=full_text,
                 title=file_name,
                 sections=sections,
-                metadata={"file_type": "json", "parsed": True, "top_level_keys": list(data.keys()) if isinstance(data, dict) else []},
+                metadata={
+                    "file_type": "json",
+                    "parsed": True,
+                    "top_level_keys": top_level_keys,
+                },
             )
 
         except json.JSONDecodeError as e:

@@ -16,8 +16,12 @@ class ExampleParser:
         Parse YAML or JSON file and extract content with structure
 
         Args:
-            file_path: Path to file (used to determine type and name)
-            file_content: Optional file content (if None, will read from file_path)
+            file_path: Path to file (used to determine type and name).
+                      If file_content is None and file_path is a string (not Path),
+                      file_path is treated as raw content string.
+            file_content: Optional file content. If provided, file_path is only used
+                         to determine file type and name. If None, content is read
+                         from file_path (if it's a Path) or file_path is used as content.
 
         Returns:
             ParsedContent: Structured content with text, sections, and metadata
@@ -41,6 +45,10 @@ class ExampleParser:
         # Determine file type from extension
         if isinstance(file_path, Path):
             ext = file_path.suffix.lower()
+            # Handle .example suffix files (e.g., config.yaml.example)
+            if ext == ".example":
+                # Get the previous extension (e.g., .yaml from config.yaml.example)
+                ext = Path(file_path.stem).suffix.lower()
         else:
             # Try to infer from content or default to yaml
             ext = ".yaml"

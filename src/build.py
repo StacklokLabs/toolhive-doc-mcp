@@ -231,10 +231,15 @@ async def _parse_and_chunk_github(chunker, github_sources):
 
         # Find all markdown files
         md_files = list(cache_dir.glob("**/*.md"))
-        # Find all YAML files
-        yaml_files = list(cache_dir.glob("**/*.yaml")) + list(cache_dir.glob("**/*.yml"))
-        # Find all JSON files
-        json_files = list(cache_dir.glob("**/*.json"))
+        # Find all YAML files (including .example files)
+        yaml_files = (
+            list(cache_dir.glob("**/*.yaml"))
+            + list(cache_dir.glob("**/*.yml"))
+            + list(cache_dir.glob("**/*.yaml.example"))
+            + list(cache_dir.glob("**/*.yml.example"))
+        )
+        # Find all JSON files (including .example files)
+        json_files = list(cache_dir.glob("**/*.json")) + list(cache_dir.glob("**/*.json.example"))
 
         all_files = md_files + yaml_files + json_files
         total_files += len(all_files)
@@ -245,7 +250,12 @@ async def _parse_and_chunk_github(chunker, github_sources):
                 file_content = file_path.read_text(encoding="utf-8")
 
                 # Determine parser based on file extension
+                # Handle .example suffix files (e.g., config.yaml.example)
                 ext = file_path.suffix.lower()
+                if ext == ".example":
+                    # Get the previous extension (e.g., .yaml from config.yaml.example)
+                    ext = Path(file_path.stem).suffix.lower()
+
                 if ext == ".md":
                     # Parse markdown
                     parsed = await doc_parser.parse(file_content)

@@ -103,11 +103,13 @@ jobs:
           fi
 
       - name: Trigger infra image update
-        if: success() && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        if: success()
+        continue-on-error: true
         env:
           INFRA_REPO: stacklok/infra
           IMAGE_NAME: ghcr.io/${{ steps.repo_owner.outputs.OWNER }}/toolhive-doc-mcp
           IMAGE_TAG: ${{ github.ref_name }}  # e.g., v0.0.6
+          GH_TOKEN: ${{ secrets.INFRA_DISPATCH_TOKEN }}
         run: |
           gh api repos/$INFRA_REPO/dispatches \
             -X POST \

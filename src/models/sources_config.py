@@ -49,6 +49,18 @@ class GitHubConfig(BaseModel):
     api_url: str = Field(default="https://api.github.com", description="GitHub API base URL")
 
 
+class RefreshConfig(BaseModel):
+    """Configuration for background refresh mechanism"""
+
+    enabled: bool = Field(default=True, description="Enable background refresh")
+    interval_hours: int = Field(
+        default=24, ge=1, le=168, description="Refresh interval in hours (1-168)"
+    )
+    max_concurrent_jobs: int = Field(
+        default=1, ge=1, description="Maximum concurrent refresh jobs"
+    )
+
+
 class SourcesConfig(BaseModel):
     """Complete sources configuration"""
 
@@ -61,6 +73,7 @@ class SourcesConfig(BaseModel):
     sources: Sources = Field(default_factory=Sources)
     fetching: FetchingConfig = Field(default_factory=FetchingConfig)
     github: GitHubConfig = Field(default_factory=GitHubConfig)
+    refresh: RefreshConfig = Field(default_factory=RefreshConfig)
 
     def get_enabled_websites(self) -> list[WebsiteSource]:
         """Get all enabled website sources"""

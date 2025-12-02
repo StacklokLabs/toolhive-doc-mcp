@@ -50,3 +50,9 @@ github:
   # You can also set the GITHUB_TOKEN environment variable
   token: null
   api_url: "https://api.github.com"  # GitHub API base URL
+
+# Background refresh configuration
+refresh:
+  enabled: true  # Enable/disable background refresh
+  interval_hours: 24  # Refresh every 24 hours
+  max_concurrent_jobs: 1  # Prevent overlapping refreshes

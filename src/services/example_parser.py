@@ -171,4 +171,3 @@ class ExampleParser:
                 sections=[],
                 metadata={"file_type": "json", "parse_error": str(e)},
             )
-

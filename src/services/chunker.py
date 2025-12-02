@@ -77,7 +77,7 @@ class Chunker:
         for i, (heading, content) in enumerate(sections):
             section_text = f"{content}"  # Content already includes heading
             section_tokens = self.count_tokens(section_text)
-            is_last_section = (i == len(sections) - 1)
+            is_last_section = i == len(sections) - 1
 
             # Check if adding this section would exceed max size
             if current_tokens > 0 and (current_tokens + section_tokens) > self.chunk_size_tokens:
@@ -174,7 +174,7 @@ class Chunker:
             section_heading = headings[0]
         else:
             # Multiple sections aggregated - use first as main, indicate others
-            section_heading = f"{headings[0]} (+ {len(headings)-1} more)"
+            section_heading = f"{headings[0]} (+ {len(headings) - 1} more)"
 
         # If still within limits, return single chunk
         if combined_tokens <= self.chunk_size_tokens:

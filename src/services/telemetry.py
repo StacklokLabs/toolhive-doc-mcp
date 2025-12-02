@@ -169,7 +169,7 @@ class TelemetryService:
 
             # Add chunk_id if present (bounded UUID)
             if "chunk_id" in parameters:
-                log_body_parts.append(f'chunk_id={parameters["chunk_id"]}')
+                log_body_parts.append(f"chunk_id={parameters['chunk_id']}")
 
             # Add summary stats
             if response and tool_name == "query_docs":

@@ -57,9 +57,7 @@ class WebsiteFetcher:
             raise ValueError(f"URL {url_str} is not under allowed domain {base_parsed.netloc}")
 
         if not parsed.path.startswith(self.path_prefix):
-            raise ValueError(
-                f"URL {url_str} is not under allowed path prefix {self.path_prefix}"
-            )
+            raise ValueError(f"URL {url_str} is not under allowed path prefix {self.path_prefix}")
 
     def _create_fetch_result(
         self,

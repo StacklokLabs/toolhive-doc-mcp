@@ -24,18 +24,16 @@ dependencies = [
     "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
     "python-dotenv>=1.0.0",
     "apscheduler>=3.10.0",
+    "httpx>=0.28.1",
 ]
 
 [dependency-groups]
 dev = [
-    "httpx>=0.28.1",
-    "mypy>=1.18.2",
     "pytest>=8.4.2",
     "pytest-asyncio>=1.2.0",
     "pytest-cov>=7.0.0",
     "ruff>=0.14.4",
     "ty>=0.0.1a18",
-    "pytest-cov>=7.0.0",
 ]
 security = [
     "safety>=3.2.11",

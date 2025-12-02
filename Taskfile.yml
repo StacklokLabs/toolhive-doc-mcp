@@ -94,10 +94,9 @@ tasks:
   run-locally:
     desc: Run the application locally
     env:
-      TOOLHIVE_HOST: "localhost"
-      TOOLHIVE_PORT: "8080"
+      MCP_PORT: "8080"
     cmds:
-      - uv run mtm
+      - uv run toolhive-doc-mcp
     deps:
       - install
 

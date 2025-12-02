@@ -115,9 +115,7 @@ async def test_rate_limiting_behavior():
         concurrent_limit=1,  # Only 1 concurrent request
     )
 
-    async with WebsiteFetcher(
-        TEST_BASE_URL, TEST_PATH_PREFIX, rate_limited_config
-    ) as fetcher:
+    async with WebsiteFetcher(TEST_BASE_URL, TEST_PATH_PREFIX, rate_limited_config) as fetcher:
         # Discover some pages
         discovered = await fetcher.discover_pages(str(TEST_BASE_URL), max_depth=1)
 

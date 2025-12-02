@@ -17,7 +17,7 @@ from src.services.vector_store import VectorStore
 from src.utils.sources_loader import load_sources_config
 
 
-async def _initialize_services():
+async def _initialize_services(db_path: str | None = None):
     """Initialize all required services"""
     doc_parser = DocParser()
     chunker = Chunker()
@@ -29,11 +29,11 @@ async def _initialize_services():
     embedder.download_model()  # Ensure model is cached
     print(f"✓ Embedding model ready (dimension: {config.embedding_dimension})")
 
-    vector_store = VectorStore()
+    vector_store = VectorStore(db_path=db_path)
 
     try:
         await vector_store.initialize()
-        print(f"✓ Database initialized: {config.db_path}")
+        print(f"✓ Database initialized: {db_path or config.db_path}")
     except Exception as e:
         print(f"✗ Failed to initialize database: {e}")
         raise
@@ -446,7 +446,10 @@ def _print_build_summary(total_files_count, all_chunks_count, all_sources_data):
     print("=" * 80)
 
 
-async def build(sources_config_path: str = "sources.yaml"):
+async def build(
+    sources_config_path: str = "sources.yaml",
+    db_path: str | None = None,
+) -> None:
     """
     Complete build process: sync → parse → chunk → embed → persist
 
@@ -454,6 +457,10 @@ async def build(sources_config_path: str = "sources.yaml"):
 
     Args:
         sources_config_path: Path to sources configuration YAML file
+        db_path: Optional custom database path (uses config.db_path if None)
+
+    Raises:
+        Exception: If any step of the build process fails
     """
     # Load .env file first (won't override existing env vars)
     if Path(".env").exists():
@@ -472,7 +479,7 @@ async def build(sources_config_path: str = "sources.yaml"):
 
         # Initialize services
         print("\n[2/8] Initializing services...")
-        doc_parser, chunker, embedder, vector_store = await _initialize_services()
+        doc_parser, chunker, embedder, vector_store = await _initialize_services(db_path)
 
         # Sync documentation from all sources
         all_sources_data = await _sync_all_sources(sources_config)
@@ -495,11 +502,6 @@ async def build(sources_config_path: str = "sources.yaml"):
         # Print summary
         _print_build_summary(total_files_count, len(all_chunks), all_sources_data)
 
-        return 0
-
-    except Exception as e:
-        print(f"\n✗ Build failed: {e}")
-        return 1
     finally:
         # Cleanup
         if "embedder" in locals():
@@ -510,9 +512,13 @@ async def build(sources_config_path: str = "sources.yaml"):
 
 def main():
     """Main entry point"""
-    # Run full build
-    exit_code = asyncio.run(build())
-    sys.exit(exit_code)
+    try:
+        # Run full build
+        asyncio.run(build())
+        sys.exit(0)
+    except Exception as e:
+        print(f"\n✗ Build failed: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

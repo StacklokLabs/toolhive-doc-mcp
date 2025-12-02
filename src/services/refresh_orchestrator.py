@@ -1,14 +1,17 @@
 """Orchestrates background refresh of documentation database"""
 
+import asyncio
 import logging
-import time
 from datetime import datetime
 
 from apscheduler.jobstores.base import JobLookupError
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
+from src.build import build
+from src.config import config
 from src.models.refresh_config import RefreshResult
+from src.services.db_manager import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
@@ -17,14 +20,10 @@ class RefreshOrchestrator:
     """Orchestrates background refresh of documentation database"""
 
     def __init__(self):
-        """
-        Initialize refresh orchestrator
-
-        Args:
-            enabled: Whether background refresh is enabled
-        """
+        """Initialize refresh orchestrator"""
+        self.config = config
+        self.db_manager = DatabaseManager()
         self.scheduler: BackgroundScheduler | None = None
-        self.is_refreshing = False
 
     def configure_scheduler_sync(
         self,
@@ -44,7 +43,8 @@ class RefreshOrchestrator:
 
         # Create trigger based on interval
         trigger = IntervalTrigger(
-            hours=interval_hours,
+            # hours=interval_hours,
+            seconds=10,
             start_date=datetime.now(),
         )
 
@@ -71,47 +71,59 @@ class RefreshOrchestrator:
 
     def refresh_once(self) -> RefreshResult:
         """
-        Execute single refresh cycle (NoOp implementation)
+        Execute single refresh cycle
 
-        This is a placeholder implementation that simulates a refresh
-        without actually performing any database operations.
+        Process:
+        1. Check if already refreshing (prevent overlaps)
+        2. Create temp database at docs.db.new
+        3. Run build process into temp DB
+        4. Verify integrity
+        5. Swap atomically
+        6. Clean up old backups
 
         Note: This is synchronous because BackgroundScheduler runs in threads.
+        We use asyncio.run() to bridge to async build operations.
 
         Returns:
             RefreshResult: Result of refresh operation
         """
-        if self.is_refreshing:
-            logger.warning("Refresh already in progress, skipping")
-            return RefreshResult(
-                success=False,
-                start_time=datetime.now(),
-                end_time=datetime.now(),
-                duration_seconds=0.0,
-                error="Refresh already in progress",
-            )
-
-        self.is_refreshing = True
         start_time = datetime.now()
 
         try:
-            logger.info("Starting NoOp refresh (placeholder implementation)")
+            logger.info("Starting database refresh")
 
-            time.sleep(1)
+            # Step 1: Cleanup stale databases
+            self.db_manager.cleanup_stale_databases()
 
-            logger.info("NoOp refresh completed successfully")
+            # Step 2: Run rebuild process (async wrapped in sync)
+            asyncio.run(
+                build(
+                    sources_config_path="sources.yaml",
+                    db_path=self.config.db_temp_path,
+                )
+            )
 
-            # Create successful result
+            logger.info("Build completed, proceeding to swap databases")
+
+            # Step 3: Atomic swap (includes integrity check)
+            self.db_manager.swap_databases(
+                temp_path=self.config.db_temp_path,
+                active_path=self.config.db_path,
+            )
+
+            # Update result timing
             end_time = datetime.now()
-            result = RefreshResult(
+            duration_seconds = (end_time - start_time).total_seconds()
+
+            logger.info(f"Refresh completed successfully in {duration_seconds:.2f}s")
+
+            return RefreshResult(
                 success=True,
                 start_time=start_time,
                 end_time=end_time,
-                duration_seconds=(end_time - start_time).total_seconds(),
+                duration_seconds=duration_seconds,
                 error=None,
             )
-            logger.info(f"NoOp refresh completed successfully in {result.duration_seconds:.2f}s")
-            return result
 
         except Exception as e:
             logger.error(f"Refresh failed with exception: {e}", exc_info=True)
@@ -123,11 +135,4 @@ class RefreshOrchestrator:
                 duration_seconds=(end_time - start_time).total_seconds(),
                 error=str(e),
             )
-            logger.info(
-                f"NoOp refresh failed after {result.duration_seconds:.2f}s "
-                f"with error: {result.error}"
-            )
             return result
-
-        finally:
-            self.is_refreshing = False

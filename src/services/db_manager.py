@@ -11,6 +11,12 @@ from src.config import config
 logger = logging.getLogger(__name__)
 
 
+class IntegrityCheckError(Exception):
+    """Raised when database integrity check fails"""
+
+    pass
+
+
 class DatabaseManager:
     """Manages database file operations and atomic swaps"""
 
@@ -27,39 +33,36 @@ class DatabaseManager:
         if not os.path.exists(db_path):
             error_msg = f"Database file does not exist: {db_path}"
             logger.error(error_msg)
-            raise FileNotFoundError(error_msg)
+            raise IntegrityCheckError(error_msg)
 
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
 
-        # Run PRAGMA integrity_check
-        cursor.execute("PRAGMA integrity_check")
-        result = cursor.fetchone()
+            # Run PRAGMA integrity_check
+            cursor.execute("PRAGMA integrity_check")
+            result = cursor.fetchone()
 
-        if result and result[0] == "ok":
-            # Verify critical tables exist
-            cursor.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' "
-                "AND name IN ('chunks', 'vec_chunks', 'metadata')"
-            )
-            tables = {row[0] for row in cursor.fetchall()}
+            if result and result[0] == "ok":
+                # Verify critical tables exist
+                cursor.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' "
+                    "AND name IN ('chunks', 'vec_chunks', 'metadata')"
+                )
+                tables = {row[0] for row in cursor.fetchall()}
 
-            required_tables = {"chunks", "vec_chunks", "metadata"}
-            if not required_tables.issubset(tables):
-                missing = required_tables - tables
-                error_msg = f"Missing required tables: {missing}"
+                required_tables = {"chunks", "vec_chunks", "metadata"}
+                if not required_tables.issubset(tables):
+                    missing = required_tables - tables
+                    error_msg = f"Missing required tables: {missing}"
+                    logger.error(error_msg)
+                    raise IntegrityCheckError(error_msg)
+
+                logger.info(f"Database integrity check passed: {db_path}")
+                return True
+            else:
+                error_msg = f"Database integrity check failed: {result}"
                 logger.error(error_msg)
-                conn.close()
-                raise Exception(error_msg)
-
-            conn.close()
-            logger.info(f"Database integrity check passed: {db_path}")
-            return True
-        else:
-            error_msg = f"Database integrity check failed: {result}"
-            logger.error(error_msg)
-            conn.close()
-            raise Exception(error_msg)
+                raise IntegrityCheckError(error_msg)
 
     def swap_databases(self, temp_path: str, active_path: str) -> None:
         """

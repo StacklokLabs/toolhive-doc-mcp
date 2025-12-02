@@ -43,8 +43,7 @@ class RefreshOrchestrator:
 
         # Create trigger based on interval
         trigger = IntervalTrigger(
-            # hours=interval_hours,
-            seconds=10,
+            hours=interval_hours,
             start_date=datetime.now(),
         )
 
@@ -74,7 +73,7 @@ class RefreshOrchestrator:
         Execute single refresh cycle
 
         Process:
-        1. Check if already refreshing (prevent overlaps)
+        1. Remove stale temp DBs
         2. Create temp database at docs.db.new
         3. Run build process into temp DB
         4. Verify integrity

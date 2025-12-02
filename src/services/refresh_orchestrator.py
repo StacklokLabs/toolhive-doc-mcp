@@ -4,6 +4,7 @@ import logging
 import time
 from datetime import datetime
 
+from apscheduler.jobstores.base import JobLookupError
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
@@ -15,17 +16,15 @@ logger = logging.getLogger(__name__)
 class RefreshOrchestrator:
     """Orchestrates background refresh of documentation database"""
 
-    def __init__(self, enabled: bool = True):
+    def __init__(self):
         """
         Initialize refresh orchestrator
 
         Args:
             enabled: Whether background refresh is enabled
         """
-        self.enabled = enabled
         self.scheduler: BackgroundScheduler | None = None
         self.is_refreshing = False
-        self.last_result: RefreshResult | None = None
 
     def configure_scheduler_sync(
         self,
@@ -41,10 +40,6 @@ class RefreshOrchestrator:
             interval_hours: Refresh interval in hours
             max_concurrent_jobs: Maximum concurrent refresh jobs
         """
-        if not self.enabled:
-            logger.info("Background refresh is disabled")
-            return
-
         self.scheduler = scheduler
 
         # Create trigger based on interval
@@ -68,8 +63,11 @@ class RefreshOrchestrator:
     def stop_scheduler_sync(self) -> None:
         """Gracefully stop scheduler (synchronous version)"""
         if self.scheduler:
-            self.scheduler.remove_job("doc_refresh")
-            logger.info("Stopped refresh scheduler")
+            try:
+                self.scheduler.remove_job("doc_refresh")
+                logger.info("Stopped refresh scheduler")
+            except JobLookupError:
+                logger.warning("Refresh job not found during shutdown")
 
     def refresh_once(self) -> RefreshResult:
         """
@@ -112,9 +110,7 @@ class RefreshOrchestrator:
                 duration_seconds=(end_time - start_time).total_seconds(),
                 error=None,
             )
-
-            self.last_result = result
-
+            logger.info(f"NoOp refresh completed successfully in {result.duration_seconds:.2f}s")
             return result
 
         except Exception as e:
@@ -127,7 +123,10 @@ class RefreshOrchestrator:
                 duration_seconds=(end_time - start_time).total_seconds(),
                 error=str(e),
             )
-            self.last_result = result
+            logger.info(
+                f"NoOp refresh failed after {result.duration_seconds:.2f}s "
+                f"with error: {result.error}"
+            )
             return result
 
         finally:

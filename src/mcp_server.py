@@ -193,7 +193,7 @@ def _startup_sync() -> None:
             logger.info("Initializing background refresh orchestrator")
             _scheduler = BackgroundScheduler()
 
-            _refresh_orchestrator = RefreshOrchestrator(enabled=refresh_config.enabled)
+            _refresh_orchestrator = RefreshOrchestrator()
             _refresh_orchestrator.configure_scheduler_sync(
                 scheduler=_scheduler,
                 interval_hours=refresh_config.interval_hours,

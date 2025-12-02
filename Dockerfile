@@ -27,9 +27,9 @@ FROM python:3.13-slim AS builder
 
 # Create non-root user
 RUN groupadd --gid 1000 app && \
-    useradd --uid 1000 --gid app --shell /bin/bash --create-home app
+    useradd --uid 1000 --gid app --shell /usr/sbin/nologin --create-home app
 
-# Install uv
+# Install uv by copying from official image
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Set working directory and change ownership
@@ -126,7 +126,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Create non-root user (same as builder stage)
 RUN groupadd --gid 1000 app && \
-    useradd --uid 1000 --gid app --shell /bin/bash --create-home app
+    useradd --uid 1000 --gid app --shell /usr/sbin/nologin --create-home app
 
 # Create app directory and set ownership
 WORKDIR /app

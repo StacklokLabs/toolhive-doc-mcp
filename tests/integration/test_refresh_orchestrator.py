@@ -83,9 +83,7 @@ class TestRefreshOrchestrator:
         async def mock_build_failure(sources_config_path, db_path):
             raise Exception("Build failed: network error")
 
-        with patch(
-            "src.services.refresh_orchestrator.build", side_effect=mock_build_failure
-        ):
+        with patch("src.services.refresh_orchestrator.build", side_effect=mock_build_failure):
             with patch("src.services.refresh_orchestrator.config") as mock_config:
                 mock_config.db_path = active_db
                 mock_config.db_temp_path = temp_db
@@ -114,9 +112,7 @@ class TestRefreshOrchestrator:
             conn.commit()
             conn.close()
 
-        with patch(
-            "src.services.refresh_orchestrator.build", side_effect=mock_build_invalid
-        ):
+        with patch("src.services.refresh_orchestrator.build", side_effect=mock_build_invalid):
             with patch("src.services.refresh_orchestrator.config") as mock_config:
                 mock_config.db_path = active_db
                 mock_config.db_temp_path = temp_db
@@ -177,9 +173,7 @@ class TestRefreshOrchestrator:
                 assert result.end_time is not None
                 assert result.end_time >= result.start_time
 
-    def test_refresh_with_exception_preserves_database(
-        self, temp_dir, setup_databases
-    ):
+    def test_refresh_with_exception_preserves_database(self, temp_dir, setup_databases):
         """Test that active database is preserved on exception"""
         active_db, temp_db = setup_databases
 

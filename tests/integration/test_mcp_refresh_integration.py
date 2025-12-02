@@ -28,13 +28,9 @@ class TestMCPRefreshIntegration:
 
     def test_startup_initializes_refresh_when_enabled(self, mock_sources_config):
         """Test that refresh orchestrator is initialized on server startup"""
-        with patch(
-            "src.mcp_server.load_sources_config", return_value=mock_sources_config
-        ):
+        with patch("src.mcp_server.load_sources_config", return_value=mock_sources_config):
             with patch("src.mcp_server.BackgroundScheduler") as mock_scheduler_class:
-                with patch(
-                    "src.mcp_server.RefreshOrchestrator"
-                ) as mock_orchestrator_class:
+                with patch("src.mcp_server.RefreshOrchestrator") as mock_orchestrator_class:
                     mock_scheduler = MagicMock()
                     mock_scheduler_class.return_value = mock_scheduler
 
@@ -55,18 +51,14 @@ class TestMCPRefreshIntegration:
                     # Verify scheduler was started
                     mock_scheduler.start.assert_called_once()
 
-    def test_startup_skips_refresh_when_disabled(
-        self, mock_sources_config_disabled
-    ):
+    def test_startup_skips_refresh_when_disabled(self, mock_sources_config_disabled):
         """Test that refresh is not initialized when disabled in config"""
         with patch(
             "src.mcp_server.load_sources_config",
             return_value=mock_sources_config_disabled,
         ):
             with patch("src.mcp_server.BackgroundScheduler") as mock_scheduler_class:
-                with patch(
-                    "src.mcp_server.RefreshOrchestrator"
-                ) as mock_orchestrator_class:
+                with patch("src.mcp_server.RefreshOrchestrator") as mock_orchestrator_class:
                     # Execute startup
                     _startup_sync()
 

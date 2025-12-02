@@ -49,6 +49,7 @@ toolhive-doc-mcp = { workspace = true }
 
 [project.scripts]
 toolhive-doc-mcp = "src.mcp_server:main"
+toolhive-refresh = "src.refresh:main"
 
 [build-system]
 requires = ["hatchling"]

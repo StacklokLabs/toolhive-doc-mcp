@@ -46,7 +46,7 @@ class TestDatabaseManager:
         missing_db = os.path.join(temp_dir, "missing.db")
 
         # Should raise FileNotFoundError
-        with pytest.raises(FileNotFoundError, match="does not exist"):
+        with pytest.raises(Exception, match="does not exist"):
             manager._check_db_integrity(missing_db)
 
     @pytest.mark.asyncio

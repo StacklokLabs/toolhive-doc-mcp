@@ -56,9 +56,7 @@ class RefreshConfig(BaseModel):
     interval_hours: int = Field(
         default=24, ge=1, le=168, description="Refresh interval in hours (1-168)"
     )
-    max_concurrent_jobs: int = Field(
-        default=1, ge=1, description="Maximum concurrent refresh jobs"
-    )
+    max_concurrent_jobs: int = Field(default=1, ge=1, description="Maximum concurrent refresh jobs")
 
 
 class SourcesConfig(BaseModel):

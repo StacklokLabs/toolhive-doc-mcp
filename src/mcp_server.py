@@ -1,8 +1,10 @@
 """MCP server implementation using fastmcp"""
 
+import logging
 from typing import Any
 from uuid import UUID
 
+from apscheduler.schedulers.background import BackgroundScheduler
 from fastmcp import FastMCP
 from fastmcp.exceptions import McpError
 from mcp.types import ErrorData
@@ -11,9 +13,15 @@ from starlette.responses import JSONResponse
 from src.config import config
 from src.models.query import Query, QueryType
 from src.models.search_result import QueryDocsOutput
+from src.services.refresh_orchestrator import RefreshOrchestrator
 from src.services.search import SearchService
 from src.services.telemetry import get_telemetry_service
 from src.services.vector_store import VectorStore
+from src.utils.sources_loader import load_sources_config
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Initialize fastmcp server
 mcp = FastMCP(name="stacklok-docs-search", version="1.0.0")
@@ -21,6 +29,10 @@ mcp = FastMCP(name="stacklok-docs-search", version="1.0.0")
 # Initialize services (will be set up on first request)
 _vector_store: VectorStore | None = None
 _search_service: SearchService | None = None
+
+# Background refresh orchestrator
+_refresh_orchestrator: RefreshOrchestrator | None = None
+_scheduler: BackgroundScheduler | None = None
 
 
 async def _get_services() -> tuple[VectorStore, SearchService]:
@@ -78,8 +90,7 @@ async def query_docs(
                 ErrorData(
                     code=-32602,
                     message=(
-                        f"Invalid query_type: {query_type}. "
-                        "Must be: semantic, keyword, or hybrid"
+                        f"Invalid query_type: {query_type}. Must be: semantic, keyword, or hybrid"
                     ),
                 )
             ) from e
@@ -169,11 +180,66 @@ def health_check(request):
     return JSONResponse({"status": "ok"})
 
 
+def _startup_sync() -> None:
+    """Initialize background refresh on server startup"""
+    global _refresh_orchestrator, _scheduler
+
+    # Load sources config to check if refresh is enabled
+    try:
+        sources_config = load_sources_config()
+        refresh_config = sources_config.refresh
+
+        if refresh_config.enabled:
+            logger.info("Initializing background refresh orchestrator")
+            _scheduler = BackgroundScheduler()
+
+            _refresh_orchestrator = RefreshOrchestrator(enabled=refresh_config.enabled)
+            _refresh_orchestrator.configure_scheduler_sync(
+                scheduler=_scheduler,
+                interval_hours=refresh_config.interval_hours,
+                max_concurrent_jobs=refresh_config.max_concurrent_jobs,
+            )
+
+            _scheduler.start()
+            logger.info("Background refresh orchestrator started successfully")
+        else:
+            logger.info("Background refresh is disabled")
+    except Exception as e:
+        logger.error(f"Failed to start background refresh orchestrator: {e}")
+        # Don't fail server startup if refresh fails to initialize
+
+
+def _shutdown_sync() -> None:
+    """Gracefully shutdown on server shutdown"""
+    global _scheduler, _refresh_orchestrator
+
+    if _scheduler:
+        try:
+            logger.info("Shutting down background refresh scheduler")
+            _scheduler.shutdown(wait=False)
+            logger.info("Background refresh scheduler stopped")
+        except Exception as e:
+            logger.error(f"Error shutting down scheduler: {e}")
+
+    if _refresh_orchestrator:
+        try:
+            _refresh_orchestrator.stop_scheduler_sync()
+        except Exception as e:
+            logger.error(f"Error shutting down refresh orchestrator: {e}")
+
+
 def main() -> None:
     """Entry point for the MCP server"""
-    # Run server using FastMCP's built-in runner
-    # CORS is handled automatically by FastMCP via streamable-http transport
-    mcp.run(transport="streamable-http", host="0.0.0.0", port=config.mcp_port)
+    # Initialize background refresh service synchronously
+    _startup_sync()
+
+    try:
+        # Run server using FastMCP's built-in runner
+        # CORS is handled automatically by FastMCP via streamable-http transport
+        mcp.run(transport="streamable-http", host="0.0.0.0", port=config.mcp_port)
+    finally:
+        # Cleanup on shutdown
+        _shutdown_sync()
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 """Orchestrates background refresh of documentation database"""
 
 import logging
+import time
 from datetime import datetime
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -25,7 +26,6 @@ class RefreshOrchestrator:
         self.scheduler: BackgroundScheduler | None = None
         self.is_refreshing = False
         self.last_result: RefreshResult | None = None
-        self.next_run_time: datetime | None = None
 
     def configure_scheduler_sync(
         self,
@@ -47,7 +47,7 @@ class RefreshOrchestrator:
 
         self.scheduler = scheduler
 
-        # Create trigger based on interval (TEST MODE: 5 seconds)
+        # Create trigger based on interval
         trigger = IntervalTrigger(
             hours=interval_hours,
             start_date=datetime.now(),
@@ -98,9 +98,6 @@ class RefreshOrchestrator:
 
         try:
             logger.info("Starting NoOp refresh (placeholder implementation)")
-
-            # Simulate refresh work with a short delay
-            import time
 
             time.sleep(1)
 

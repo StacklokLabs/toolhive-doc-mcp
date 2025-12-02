@@ -213,6 +213,12 @@ def _shutdown_sync() -> None:
     """Gracefully shutdown on server shutdown"""
     global _scheduler, _refresh_orchestrator
 
+    if _refresh_orchestrator:
+        try:
+            _refresh_orchestrator.stop_scheduler_sync()
+        except Exception as e:
+            logger.error(f"Error shutting down refresh orchestrator: {e}")
+
     if _scheduler:
         try:
             logger.info("Shutting down background refresh scheduler")
@@ -220,12 +226,6 @@ def _shutdown_sync() -> None:
             logger.info("Background refresh scheduler stopped")
         except Exception as e:
             logger.error(f"Error shutting down scheduler: {e}")
-
-    if _refresh_orchestrator:
-        try:
-            _refresh_orchestrator.stop_scheduler_sync()
-        except Exception as e:
-            logger.error(f"Error shutting down refresh orchestrator: {e}")
 
 
 def main() -> None:

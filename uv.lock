@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.13"
 
 [[package]]
@@ -2953,7 +2953,7 @@ dev = [
 ]
 security = [
     { name = "bandit", extras = ["toml"], specifier = ">=1.8.0" },
-    { name = "cyclonedx-bom", specifier = ">=6.0.0" },
+    { name = "cyclonedx-bom", specifier = ">=6.1.3" },
     { name = "pip-audit", specifier = ">=2.9.0" },
     { name = "safety", specifier = ">=3.2.11" },
 ]

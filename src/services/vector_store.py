@@ -13,8 +13,8 @@ from src.models.chunk import DocumentationChunk
 class VectorStore:
     """SQLite-based vector store for documentation chunks and embeddings"""
 
-    def __init__(self, db_path: str | None = None):
-        self.db_path = db_path or config.db_path
+    def __init__(self, db_path: str):
+        self.db_path = db_path
         self.conn: sqlite3.Connection | None = None
 
     async def initialize(self) -> None:

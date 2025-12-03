@@ -40,7 +40,7 @@ async def _get_services() -> tuple[VectorStore, SearchService]:
     global _vector_store, _search_service
 
     if not _vector_store:
-        _vector_store = VectorStore()
+        _vector_store = VectorStore(config.db_path)
         await _vector_store.initialize()
 
         # Check if database is initialized

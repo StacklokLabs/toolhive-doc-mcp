@@ -17,7 +17,7 @@ from src.services.vector_store import VectorStore
 from src.utils.sources_loader import load_sources_config
 
 
-async def _initialize_services(db_path: str | None = None):
+async def _initialize_services(db_path: str):
     """Initialize all required services"""
     doc_parser = DocParser()
     chunker = Chunker()
@@ -33,7 +33,7 @@ async def _initialize_services(db_path: str | None = None):
 
     try:
         await vector_store.initialize()
-        print(f"✓ Database initialized: {db_path or config.db_path}")
+        print(f"✓ Database initialized: {db_path}")
     except Exception as e:
         print(f"✗ Failed to initialize database: {e}")
         raise
@@ -479,6 +479,7 @@ async def build(
 
         # Initialize services
         print("\n[2/8] Initializing services...")
+        db_path = db_path or config.db_path
         doc_parser, chunker, embedder, vector_store = await _initialize_services(db_path)
 
         # Sync documentation from all sources

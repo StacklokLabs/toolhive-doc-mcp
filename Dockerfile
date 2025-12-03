@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.4
 # SQLite-vec builder stage - separate stage for better caching
-FROM python:3.13-slim AS sqlite-vec-builder
+FROM python:3.14-slim AS sqlite-vec-builder
 
 # Install build dependencies for compiling sqlite-vec
 # build-essential includes gcc and make, so they're not needed separately
@@ -23,7 +23,7 @@ RUN git checkout 639fca5739fe056fdc98f3d539c4cd79328d7dc7 \
     && cp dist/vec0.* /sqlite-vec-dist/
 
 # Main builder stage
-FROM python:3.13-slim AS builder
+FROM python:3.14-slim AS builder
 
 # Create non-root user
 RUN groupadd --gid 1000 app && \
@@ -117,7 +117,7 @@ RUN --mount=type=cache,target=/app/.cache/uv,uid=1000,gid=1000 \
     uv run --package toolhive-doc-mcp src/build.py
 
 # Base runner stage - common setup for both build variants
-FROM python:3.13-slim AS runner-base
+FROM python:3.14-slim AS runner-base
 
 # Install curl for health checks
 RUN apt-get update && apt-get install -y --no-install-recommends \

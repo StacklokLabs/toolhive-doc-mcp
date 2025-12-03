@@ -3,6 +3,7 @@
 import logging
 import os
 import sqlite3
+import threading
 from datetime import datetime
 from pathlib import Path
 
@@ -64,7 +65,9 @@ class DatabaseManager:
                 logger.error(error_msg)
                 raise IntegrityCheckError(error_msg)
 
-    def swap_databases(self, temp_path: str, active_path: str) -> None:
+    def swap_databases(
+        self, temp_path: str, active_path: str, lock: threading.Lock | None = None
+    ) -> None:
         """
         Atomically swap temp database with active database
 
@@ -78,58 +81,69 @@ class DatabaseManager:
         Args:
             temp_path: Path to temporary (new) database
             active_path: Path to active (current) database
+            lock: Optional threading lock to coordinate with service initialization
 
         Raises:
             Exception: If swap fails (after attempting rollback)
         """
-        logger.info(f"Starting database swap: {temp_path} -> {active_path}")
 
-        # Step 1: Verify temp database (will raise if invalid)
-        self._check_db_integrity(temp_path)
+        def _perform_swap():
+            """Internal function to perform the actual swap"""
+            logger.info(f"Starting database swap: {temp_path} -> {active_path}")
 
-        # Step 2: Create backup
-        backup_path = f"{active_path}.backup-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+            # Step 1: Verify temp database (will raise if invalid)
+            self._check_db_integrity(temp_path)
 
-        try:
-            # Check if active database exists
-            if os.path.exists(active_path):
-                logger.info(f"Creating backup: {active_path} -> {backup_path}")
-                # Use rename for atomic operation
-                os.rename(active_path, backup_path)
-            else:
-                logger.warning(f"Active database does not exist: {active_path}")
-                backup_path = None
+            # Step 2: Create backup
+            backup_path = f"{active_path}.backup-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
-            # Step 3: Atomic rename (this is atomic on Unix and Windows)
-            logger.info(f"Swapping databases: {temp_path} -> {active_path}")
-            os.rename(temp_path, active_path)
+            try:
+                # Check if active database exists
+                if os.path.exists(active_path):
+                    logger.info(f"Creating backup: {active_path} -> {backup_path}")
+                    # Use rename for atomic operation
+                    os.rename(active_path, backup_path)
+                else:
+                    logger.warning(f"Active database does not exist: {active_path}")
+                    backup_path = None
 
-            logger.info("Database swap completed successfully")
+                # Step 3: Atomic rename (this is atomic on Unix and Windows)
+                logger.info(f"Swapping databases: {temp_path} -> {active_path}")
+                os.rename(temp_path, active_path)
 
-            # Step 4: Cleanup old backups (keep most recent)
-            if backup_path and os.path.exists(backup_path):
-                self._cleanup_old_backups(active_path, keep_count=1)
+                logger.info("Database swap completed successfully")
 
-        except Exception as e:
-            logger.error(f"Database swap failed: {e}")
+                # Step 4: Cleanup old backups (keep most recent)
+                if backup_path and os.path.exists(backup_path):
+                    self._cleanup_old_backups(active_path, keep_count=1)
 
-            # Step 5: Rollback - restore from backup
-            if backup_path and os.path.exists(backup_path):
-                try:
-                    logger.info("Rolling back to backup database")
-                    if os.path.exists(active_path):
-                        os.remove(active_path)
-                    os.rename(backup_path, active_path)
-                    logger.info("Rollback completed")
-                except Exception as rollback_error:
-                    logger.error(f"Rollback failed: {rollback_error}")
-                    # Re-raise with rollback context
-                    raise Exception(
-                        f"Database swap failed and rollback also failed: {e}"
-                    ) from rollback_error
+            except Exception as e:
+                logger.error(f"Database swap failed: {e}")
 
-            # Re-raise original exception after rollback
-            raise Exception(f"Database swap failed: {e}") from e
+                # Step 5: Rollback - restore from backup
+                if backup_path and os.path.exists(backup_path):
+                    try:
+                        logger.info("Rolling back to backup database")
+                        if os.path.exists(active_path):
+                            os.remove(active_path)
+                        os.rename(backup_path, active_path)
+                        logger.info("Rollback completed")
+                    except Exception as rollback_error:
+                        logger.error(f"Rollback failed: {rollback_error}")
+                        # Re-raise with rollback context
+                        raise Exception(
+                            f"Database swap failed and rollback also failed: {e}"
+                        ) from rollback_error
+
+                # Re-raise original exception after rollback
+                raise Exception(f"Database swap failed: {e}") from e
+
+        # Acquire lock if provided to coordinate with service initialization
+        if lock is not None:
+            with lock:
+                _perform_swap()
+        else:
+            _perform_swap()
 
     def _cleanup_old_backups(self, db_path: str, keep_count: int = 1) -> None:
         """

@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import threading
 from datetime import datetime
 
 from apscheduler.jobstores.base import JobLookupError
@@ -19,11 +20,17 @@ logger = logging.getLogger(__name__)
 class RefreshOrchestrator:
     """Orchestrates background refresh of documentation database"""
 
-    def __init__(self):
-        """Initialize refresh orchestrator"""
+    def __init__(self, db_swap_lock: threading.Lock | None = None):
+        """
+        Initialize refresh orchestrator
+
+        Args:
+            db_swap_lock: Optional lock to coordinate database swaps with service init
+        """
         self.config = config
         self.db_manager = DatabaseManager()
         self.scheduler: BackgroundScheduler | None = None
+        self.db_swap_lock = db_swap_lock
 
     def configure_scheduler_sync(
         self,
@@ -105,9 +112,11 @@ class RefreshOrchestrator:
             logger.info("Build completed, proceeding to swap databases")
 
             # Step 3: Atomic swap (includes integrity check)
+            # Pass lock to coordinate with service initialization in MCP server
             self.db_manager.swap_databases(
                 temp_path=self.config.db_temp_path,
                 active_path=self.config.db_path,
+                lock=self.db_swap_lock,
             )
 
             # Update result timing

@@ -30,28 +30,25 @@ class VectorStore:
         Returns:
             Configured sqlite3.Connection with row_factory and sqlite_vec loaded
         """
+
+        def __instance_conn() -> sqlite3.Connection:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            try:
+                conn.enable_load_extension(True)
+                sqlite_vec.load(conn)
+            except Exception as e:
+                print(f"Warning: Could not load sqlite_vec extension: {e}")
+            return conn
+
         # For :memory: databases, use persistent connection
         if self.db_path == ":memory:":
             if self._memory_conn is None:
-                self._memory_conn = sqlite3.connect(self.db_path)
-                self._memory_conn.row_factory = sqlite3.Row
-                try:
-                    self._memory_conn.enable_load_extension(True)
-                    sqlite_vec.load(self._memory_conn)
-                except Exception as e:
-                    print(f"Warning: Could not load sqlite_vec extension: {e}")
+                self._memory_conn = __instance_conn()
             return self._memory_conn
 
         # For file databases, create new connection
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-
-        try:
-            conn.enable_load_extension(True)
-            sqlite_vec.load(conn)
-        except Exception as e:
-            # sqlite_vec might be statically linked or not needed for basic operation
-            print(f"Warning: Could not load sqlite_vec extension: {e}")
+        conn = __instance_conn()
 
         return conn
 

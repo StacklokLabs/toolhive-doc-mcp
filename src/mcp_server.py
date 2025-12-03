@@ -1,6 +1,7 @@
 """MCP server implementation using fastmcp"""
 
 import logging
+import threading
 from typing import Any
 from uuid import UUID
 
@@ -34,26 +35,37 @@ _search_service: SearchService | None = None
 _refresh_orchestrator: RefreshOrchestrator | None = None
 _scheduler: BackgroundScheduler | None = None
 
+# Database swap lock - ensures atomic database swaps don't interfere with service init
+_db_swap_lock = threading.Lock()
+
 
 async def _get_services() -> tuple[VectorStore, SearchService]:
-    """Get or initialize services"""
+    """
+    Get or initialize services
+
+    Uses lock to ensure service initialization doesn't happen during database swap.
+    """
     global _vector_store, _search_service
 
-    if not _vector_store:
-        _vector_store = VectorStore()
-        await _vector_store.initialize()
+    # Acquire lock to prevent initialization during database swap
+    with _db_swap_lock:
+        if not _vector_store:
+            _vector_store = VectorStore(config.db_path)
+            await _vector_store.initialize()
 
-        # Check if database is initialized
-        if not await _vector_store.health_check():
-            raise McpError(
-                ErrorData(
-                    code=-32001,
-                    message="Documentation database is not initialized. Run build process first.",
+            # Check if database is initialized
+            if not await _vector_store.health_check():
+                raise McpError(
+                    ErrorData(
+                        code=-32001,
+                        message=(
+                            "Documentation database is not initialized. Run build process first."
+                        ),
+                    )
                 )
-            )
 
-    if not _search_service:
-        _search_service = SearchService(_vector_store)
+        if not _search_service:
+            _search_service = SearchService(_vector_store)
 
     return _vector_store, _search_service
 
@@ -193,7 +205,8 @@ def _startup_sync() -> None:
             logger.info("Initializing background refresh orchestrator")
             _scheduler = BackgroundScheduler()
 
-            _refresh_orchestrator = RefreshOrchestrator()
+            # Pass the db_swap_lock to coordinate with service initialization
+            _refresh_orchestrator = RefreshOrchestrator(db_swap_lock=_db_swap_lock)
             _refresh_orchestrator.configure_scheduler_sync(
                 scheduler=_scheduler,
                 interval_hours=refresh_config.interval_hours,

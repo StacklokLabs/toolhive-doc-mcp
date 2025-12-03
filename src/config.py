@@ -16,6 +16,9 @@ class AppConfig(BaseSettings):
 
     # Database
     db_path: str = Field(default="./data/docs.db", description="SQLite database file path")
+    db_temp_path: str = Field(
+        default="./data/docs.db.new", description="Temporary database path for refresh operations"
+    )
     vector_distance_metric: str = Field(
         default="cosine", description="Distance metric for vector similarity (cosine, l2, ip)"
     )

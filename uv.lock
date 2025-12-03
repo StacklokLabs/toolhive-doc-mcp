@@ -2826,7 +2826,7 @@ security = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiohttp", specifier = ">=3.9.0" },
+    { name = "aiohttp", specifier = ">=3.13.2" },
     { name = "apscheduler", specifier = ">=3.11.1" },
     { name = "beautifulsoup4", specifier = ">=4.14.2" },
     { name = "fastembed", specifier = ">=0.7.3" },

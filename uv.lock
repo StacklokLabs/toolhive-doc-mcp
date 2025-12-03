@@ -2926,7 +2926,7 @@ requires-dist = [
     { name = "fastembed", specifier = ">=0.7.3" },
     { name = "fastmcp", specifier = ">=2.13.2" },
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "lxml", specifier = ">=5.4.0" },
+    { name = "lxml", specifier = ">=6.0.2" },
     { name = "markdown-it-py", specifier = ">=3.0.0" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.23.1" },
     { name = "mdit-py-plugins", specifier = ">=0.4.0" },

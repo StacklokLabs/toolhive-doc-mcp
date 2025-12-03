@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.4
+# syntax=docker/dockerfile:1.20
 # SQLite-vec builder stage - separate stage for better caching
 FROM python:3.13-slim AS sqlite-vec-builder
 

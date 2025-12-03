@@ -352,7 +352,7 @@ async def _generate_embeddings(embedder, all_chunks):
         raise
 
 
-async def _persist_to_database(vector_store, all_chunks, embeddings):
+async def _persist_to_database(vector_store: VectorStore, all_chunks, embeddings):
     """Persist chunks and embeddings to database"""
     print("\n[6/8] Persisting to database...")
 
@@ -369,7 +369,9 @@ async def _persist_to_database(vector_store, all_chunks, embeddings):
         raise
 
 
-def _update_metadata(vector_store, total_files_count, all_chunks_count, all_sources_data):
+def _update_metadata(
+    vector_store: VectorStore, total_files_count, all_chunks_count, all_sources_data
+):
     """Update metadata in database"""
     print("\n[7/8] Updating metadata...")
 
@@ -386,20 +388,7 @@ def _update_metadata(vector_store, total_files_count, all_chunks_count, all_sour
             total_chunks=all_chunks_count,
         )
 
-        vector_store.conn.execute(
-            """
-            INSERT OR REPLACE INTO metadata (
-                id, sources_summary, local_path, last_sync, total_files, total_chunks
-            ) VALUES (1, ?, ?, datetime('now'), ?, ?)
-        """,
-            (
-                metadata.sources_summary,
-                metadata.local_path,
-                metadata.total_files,
-                metadata.total_chunks,
-            ),
-        )
-        vector_store.conn.commit()
+        vector_store.update_metadata(metadata)
         print("✓ Metadata updated")
     except Exception as e:
         print(f"⚠ Warning: Failed to update metadata: {e}")

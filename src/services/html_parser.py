@@ -176,6 +176,8 @@ class HtmlParser:
 
         for link in soup.find_all("a", href=True):
             href = link["href"]
+            if not isinstance(href, str):
+                continue
 
             try:
                 # Resolve relative URLs

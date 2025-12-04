@@ -6,7 +6,7 @@ requires-python = ">=3.13"
 dependencies = [
     "fastmcp>=2.13.2",
     "mcp[cli]>=1.23.1",
-    "uvicorn>=0.30.0",
+    "uvicorn>=0.38.0",
     "sqlite-vec>=0.1.6",
     "openai>=2.8.1",
     "markdown-it-py>=3.0.0",

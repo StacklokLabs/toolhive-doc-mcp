@@ -369,6 +369,8 @@ class WebsiteFetcher:
                 soup = BeautifulSoup(result.content, "lxml")
                 for link in soup.find_all("a", href=True):
                     href = link["href"]
+                    if not isinstance(href, str):
+                        continue
 
                     # Resolve relative URLs
                     absolute_url = urljoin(url, href)

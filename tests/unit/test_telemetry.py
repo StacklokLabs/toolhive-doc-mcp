@@ -74,14 +74,14 @@ class TestTelemetryService:
 
         # Verify log was emitted
         assert mock_otel_logger.emit.called
-        call_args = mock_otel_logger.emit.call_args[0][0]
+        call_kwargs = mock_otel_logger.emit.call_args.kwargs
 
         # Verify log body contains query text
-        assert "test query" in call_args.body
-        assert "SUCCESS" in call_args.body
+        assert "test query" in call_kwargs["body"]
+        assert "SUCCESS" in call_kwargs["body"]
 
         # Verify attributes contain low-cardinality data only
-        attrs = call_args.attributes
+        attrs = call_kwargs["attributes"]
         assert attrs["mcp.tool.name"] == "query_docs"
         assert attrs["query.param.limit"] == 5
         assert attrs["query.param.query_type"] == "semantic"
@@ -120,14 +120,14 @@ class TestTelemetryService:
 
         # Verify log was emitted
         assert mock_otel_logger.emit.called
-        call_args = mock_otel_logger.emit.call_args[0][0]
+        call_kwargs = mock_otel_logger.emit.call_args.kwargs
 
         # Verify log body contains failure indicator
-        assert "FAILED" in call_args.body
-        assert "ValueError" in call_args.body
+        assert "FAILED" in call_kwargs["body"]
+        assert "ValueError" in call_kwargs["body"]
 
         # Verify error attributes
-        attrs = call_args.attributes
+        attrs = call_kwargs["attributes"]
         assert attrs["response.success"] is False
         assert attrs["error.type"] == "ValueError"
         assert "Test error" in attrs["error.message"]
@@ -159,11 +159,11 @@ class TestTelemetryService:
 
         # Verify log was emitted and query was truncated
         assert mock_otel_logger.emit.called
-        call_args = mock_otel_logger.emit.call_args[0][0]
+        call_kwargs = mock_otel_logger.emit.call_args.kwargs
 
         # Body should contain truncated query
-        assert "..." in call_args.body
-        assert len(call_args.body) < len(long_query)
+        assert "..." in call_kwargs["body"]
+        assert len(call_kwargs["body"]) < len(long_query)
 
     @patch("src.services.telemetry.config")
     @patch("src.services.telemetry.set_logger_provider")
@@ -190,14 +190,14 @@ class TestTelemetryService:
 
         # Verify log was emitted
         assert mock_otel_logger.emit.called
-        call_args = mock_otel_logger.emit.call_args[0][0]
+        call_kwargs = mock_otel_logger.emit.call_args.kwargs
 
         # Verify log body
-        assert "get_chunk" in call_args.body
-        assert "test-uuid-123" in call_args.body
+        assert "get_chunk" in call_kwargs["body"]
+        assert "test-uuid-123" in call_kwargs["body"]
 
         # Verify attributes
-        attrs = call_args.attributes
+        attrs = call_kwargs["attributes"]
         assert attrs["mcp.tool.name"] == "get_chunk"
         assert attrs["response.chunk_retrieved"] is True
         assert attrs["response.content_length"] == len("Test content")

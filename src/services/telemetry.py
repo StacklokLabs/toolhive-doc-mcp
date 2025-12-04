@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from opentelemetry._logs import set_logger_provider
+from opentelemetry._logs import SeverityNumber, set_logger_provider
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry.sdk._logs import LoggerProvider
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
@@ -194,31 +194,15 @@ class TelemetryService:
             severity = logging.ERROR if error else logging.INFO
 
             self.otel_logger.emit(
-                self._create_log_record(
-                    body=log_body,
-                    severity_number=self._severity_to_number(severity),
-                    attributes=attributes,
-                )
+                body=log_body,
+                severity_number=SeverityNumber(self._severity_to_number(severity)),
+                attributes=attributes,
+                timestamp=int(datetime.now(timezone.utc).timestamp() * 1e9),
             )
 
         except Exception as e:
             # Don't let telemetry errors break the application
             logger.warning(f"Failed to log telemetry: {e}")
-
-    def _create_log_record(
-        self, body: str, severity_number: int, attributes: dict[str, str | int | float | bool]
-    ) -> Any:
-        """Create a log record with the given parameters"""
-        # Convert severity_number to SeverityNumber enum
-        from opentelemetry._logs import SeverityNumber
-        from opentelemetry.sdk._logs import LogRecord
-
-        return LogRecord(
-            timestamp=int(datetime.now(timezone.utc).timestamp() * 1e9),  # nanoseconds
-            severity_number=SeverityNumber(severity_number),
-            body=body,
-            attributes=attributes,
-        )
 
     def _severity_to_number(self, level: int) -> int:
         """Convert Python logging level to OpenTelemetry severity number"""

@@ -35,6 +35,10 @@ dev = [
     "pytest-cov>=7.0.0",
     "ruff>=0.14.7",
     "ty>=0.0.1a31",
+    "boto3>=1.35.0",
+    "pandas>=2.2.0",
+    "ipython>=8.26.0",
+    "ipykernel>=6.29.0",
 ]
 security = [
     "safety>=3.7.0",

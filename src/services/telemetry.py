@@ -36,7 +36,9 @@ class TelemetryService:
             try:
                 self._initialize_logging()
             except Exception as e:
-                logger.warning(f"Failed to initialize OTel logging: {e}. Logging disabled.")
+                logger.warning(
+                    f"Failed to initialize OTel logging: {e}. Logging disabled."
+                )
                 self.logging_enabled = False
 
         # Initialize tracing if enabled
@@ -44,7 +46,9 @@ class TelemetryService:
             try:
                 self._initialize_tracing()
             except Exception as e:
-                logger.warning(f"Failed to initialize OTel tracing: {e}. Tracing disabled.")
+                logger.warning(
+                    f"Failed to initialize OTel tracing: {e}. Tracing disabled."
+                )
                 self.tracing_enabled = False
 
     def _initialize_logging(self) -> None:
@@ -69,7 +73,9 @@ class TelemetryService:
         log_exporter = OTLPLogExporter(endpoint=log_endpoint)
 
         # Add batch log record processor
-        self.logger_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter))
+        self.logger_provider.add_log_record_processor(
+            BatchLogRecordProcessor(log_exporter)
+        )
 
         # Set the global logger provider
         set_logger_provider(self.logger_provider)
@@ -77,7 +83,9 @@ class TelemetryService:
         # Get logger
         self.otel_logger = self.logger_provider.get_logger(__name__)
 
-        logger.info(f"OpenTelemetry logging initialized with endpoint: {log_endpoint}")
+        logger.info(
+            f"OpenTelemetry logging initialized with endpoint: {log_endpoint}"
+        )
 
     def _initialize_tracing(self) -> None:
         """Initialize OpenTelemetry tracing with OTLP trace exporter"""
@@ -107,10 +115,13 @@ class TelemetryService:
         # Set the global tracer provider
         trace.set_tracer_provider(self.tracer_provider)
 
-        # httpx instrumentation is initialized separately via _ensure_instrumentation_initialized()
-        # to ensure it happens early, before HTTP clients are created
+        # httpx instrumentation is initialized separately via
+        # _ensure_instrumentation_initialized() to ensure it happens early,
+        # before HTTP clients are created
 
-        logger.info(f"OpenTelemetry tracing initialized with endpoint: {trace_endpoint}")
+        logger.info(
+            f"OpenTelemetry tracing initialized with endpoint: {trace_endpoint}"
+        )
 
     def log_query(  # noqa: C901
         self,
@@ -175,7 +186,9 @@ class TelemetryService:
                     # Add query info if available
                     query_info = response.get("query_info", {})
                     if "query_time_ms" in query_info:
-                        attributes["response.query_time_ms"] = float(query_info["query_time_ms"])
+                        attributes["response.query_time_ms"] = float(
+                            query_info["query_time_ms"]
+                        )
                     if "total_results" in query_info:
                         attributes["response.total_results"] = int(query_info["total_results"])
 
@@ -285,7 +298,9 @@ def _ensure_instrumentation_initialized() -> None:
             _instrumentation_initialized = True
             logger.info("HTTP request tracing instrumentation initialized")
         except Exception as e:
-            logger.warning(f"Failed to initialize HTTP tracing instrumentation: {e}")
+            logger.warning(
+                f"Failed to initialize HTTP tracing instrumentation: {e}"
+            )
 
 
 def get_telemetry_service() -> TelemetryService:

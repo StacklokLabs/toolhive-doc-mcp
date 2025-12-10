@@ -11,31 +11,75 @@ class TestTelemetryService:
     @patch("src.services.telemetry.config")
     def test_telemetry_service_disabled(self, mock_config):
         """Test that telemetry can be disabled"""
-        mock_config.otel_enabled = False
+        mock_config.otel_logging_enabled = False
+        mock_config.otel_tracing_enabled = False
 
         service = TelemetryService()
 
-        assert service.enabled is False
+        assert service.logging_enabled is False
+        assert service.tracing_enabled is False
         assert service.otel_logger is None
 
     @patch("src.services.telemetry.config")
     @patch("src.services.telemetry.set_logger_provider")
     def test_telemetry_service_enabled(self, mock_set_logger_provider, mock_config):
         """Test that telemetry initializes when enabled"""
-        mock_config.otel_enabled = True
+        mock_config.otel_logging_enabled = True
+        mock_config.otel_tracing_enabled = False
         mock_config.otel_endpoint = "http://localhost:4318"
         mock_config.otel_service_name = "test-service"
         mock_config.otel_service_version = "1.0.0"
 
         service = TelemetryService()
 
-        assert service.enabled is True
+        assert service.logging_enabled is True
+        assert service.tracing_enabled is False
         assert service.logger_provider is not None
+
+    @patch("src.services.telemetry.config")
+    @patch("src.services.telemetry.trace.set_tracer_provider")
+    def test_telemetry_tracing_enabled(self, mock_set_tracer_provider, mock_config):
+        """Test that tracing initializes when enabled"""
+        mock_config.otel_logging_enabled = False
+        mock_config.otel_tracing_enabled = True
+        mock_config.otel_endpoint = "http://localhost:4318"
+        mock_config.otel_service_name = "test-service"
+        mock_config.otel_service_version = "1.0.0"
+
+        service = TelemetryService()
+
+        assert service.logging_enabled is False
+        assert service.tracing_enabled is True
+        assert service.tracer_provider is not None
+
+    @patch("src.services.telemetry.config")
+    @patch("src.services.telemetry.set_logger_provider")
+    @patch("src.services.telemetry.trace.set_tracer_provider")
+    def test_telemetry_both_enabled(
+        self,
+        mock_set_tracer_provider,
+        mock_set_logger_provider,
+        mock_config,
+    ):
+        """Test that both logging and tracing can be enabled simultaneously"""
+        mock_config.otel_logging_enabled = True
+        mock_config.otel_tracing_enabled = True
+        mock_config.otel_endpoint = "http://localhost:4318"
+        mock_config.otel_service_name = "test-service"
+        mock_config.otel_service_version = "1.0.0"
+
+        service = TelemetryService()
+
+        assert service.logging_enabled is True
+        assert service.tracing_enabled is True
+        assert service.logger_provider is not None
+        assert service.tracer_provider is not None
 
     @patch("src.services.telemetry.config")
     def test_log_query_when_disabled(self, mock_config):
         """Test that logging does nothing when disabled"""
-        mock_config.otel_enabled = False
+        mock_config.otel_logging_enabled = False
+        mock_config.otel_tracing_enabled = False
 
         service = TelemetryService()
         # Should not raise any errors
@@ -50,7 +94,8 @@ class TestTelemetryService:
     @patch("src.services.telemetry.set_logger_provider")
     def test_log_query_with_response(self, mock_set_logger_provider, mock_config):
         """Test logging a successful query with response"""
-        mock_config.otel_enabled = True
+        mock_config.otel_logging_enabled = True
+        mock_config.otel_tracing_enabled = False
         mock_config.otel_endpoint = "http://localhost:4318"
         mock_config.otel_service_name = "test-service"
         mock_config.otel_service_version = "1.0.0"
@@ -97,7 +142,8 @@ class TestTelemetryService:
     @patch("src.services.telemetry.set_logger_provider")
     def test_log_query_with_error(self, mock_set_logger_provider, mock_config):
         """Test logging a failed query with error"""
-        mock_config.otel_enabled = True
+        mock_config.otel_logging_enabled = True
+        mock_config.otel_tracing_enabled = False
         mock_config.otel_endpoint = "http://localhost:4318"
         mock_config.otel_service_name = "test-service"
         mock_config.otel_service_version = "1.0.0"
@@ -136,7 +182,8 @@ class TestTelemetryService:
     @patch("src.services.telemetry.set_logger_provider")
     def test_log_query_truncates_long_query(self, mock_set_logger_provider, mock_config):
         """Test that very long queries are truncated in log body"""
-        mock_config.otel_enabled = True
+        mock_config.otel_logging_enabled = True
+        mock_config.otel_tracing_enabled = False
         mock_config.otel_endpoint = "http://localhost:4318"
         mock_config.otel_service_name = "test-service"
         mock_config.otel_service_version = "1.0.0"
@@ -169,7 +216,8 @@ class TestTelemetryService:
     @patch("src.services.telemetry.set_logger_provider")
     def test_get_chunk_logging(self, mock_set_logger_provider, mock_config):
         """Test logging for get_chunk tool"""
-        mock_config.otel_enabled = True
+        mock_config.otel_logging_enabled = True
+        mock_config.otel_tracing_enabled = False
         mock_config.otel_endpoint = "http://localhost:4318"
         mock_config.otel_service_name = "test-service"
         mock_config.otel_service_version = "1.0.0"

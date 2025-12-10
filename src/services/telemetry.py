@@ -20,6 +20,9 @@ from src.config import config
 
 logger = logging.getLogger(__name__)
 
+# Track if httpx instrumentation has been initialized
+_httpx_instrumentation_initialized = False
+
 
 class TelemetryService:
     """Handle OpenTelemetry logging and tracing for queries and responses"""
@@ -88,7 +91,29 @@ class TelemetryService:
         )
 
     def _initialize_tracing(self) -> None:
-        """Initialize OpenTelemetry tracing with OTLP trace exporter"""
+        """Initialize OpenTelemetry tracing with OTLP trace exporter
+        
+        Note: httpx instrumentation must be initialized FIRST, before any httpx
+        clients are created. This is because the instrumentation works by
+        monkey-patching httpx classes at import time. If httpx clients are
+        instantiated before instrumentation, they won't be traced.
+        """
+        global _httpx_instrumentation_initialized
+        
+        # Initialize httpx instrumentation FIRST - this must happen before
+        # any httpx clients are created to ensure all HTTP requests are traced
+        if not _httpx_instrumentation_initialized:
+            try:
+                httpx_instrumentor = HTTPXClientInstrumentor()
+                httpx_instrumentor.instrument()
+                _httpx_instrumentation_initialized = True
+                logger.info("HTTP request tracing instrumentation initialized")
+            except Exception as e:
+                logger.warning(
+                    f"Failed to initialize HTTP tracing instrumentation: {e}"
+                )
+                # Continue with tracer provider setup even if instrumentation fails
+
         # Create resource with service information
         resource = Resource(
             attributes={
@@ -114,10 +139,6 @@ class TelemetryService:
 
         # Set the global tracer provider
         trace.set_tracer_provider(self.tracer_provider)
-
-        # httpx instrumentation is initialized separately via
-        # _ensure_instrumentation_initialized() to ensure it happens early,
-        # before HTTP clients are created
 
         logger.info(
             f"OpenTelemetry tracing initialized with endpoint: {trace_endpoint}"
@@ -283,31 +304,11 @@ class TelemetryService:
 
 # Global telemetry service instance
 _telemetry_service: TelemetryService | None = None
-# Track if instrumentation has been initialized
-_instrumentation_initialized = False
-
-
-def _ensure_instrumentation_initialized() -> None:
-    """Ensure httpx instrumentation is initialized early"""
-    global _instrumentation_initialized
-    if not _instrumentation_initialized and config.otel_tracing_enabled:
-        try:
-            # Initialize httpx instrumentation early so all HTTP clients are traced
-            httpx_instrumentor = HTTPXClientInstrumentor()
-            httpx_instrumentor.instrument()
-            _instrumentation_initialized = True
-            logger.info("HTTP request tracing instrumentation initialized")
-        except Exception as e:
-            logger.warning(
-                f"Failed to initialize HTTP tracing instrumentation: {e}"
-            )
 
 
 def get_telemetry_service() -> TelemetryService:
     """Get or create the global telemetry service instance"""
     global _telemetry_service
-    # Ensure instrumentation is initialized before creating service
-    _ensure_instrumentation_initialized()
     if _telemetry_service is None:
         _telemetry_service = TelemetryService()
     return _telemetry_service

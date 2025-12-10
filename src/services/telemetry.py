@@ -28,7 +28,7 @@ class TelemetryService:
     """Handle OpenTelemetry logging and tracing for queries and responses"""
 
     def __init__(self):
-        self.logging_enabled = config.otel_logging_enabled
+        self.logging_enabled = config.otel_enabled
         self.tracing_enabled = config.otel_tracing_enabled
         self.logger_provider = None
         self.tracer_provider = None

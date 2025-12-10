@@ -36,7 +36,7 @@ class TelemetryService:
             try:
                 self._initialize_logging()
             except Exception as e:
-                logger.warning(f"Failed to initialize OpenTelemetry logging: {e}. Logging disabled.")
+                logger.warning(f"Failed to initialize OTel logging: {e}. Logging disabled.")
                 self.logging_enabled = False
 
         # Initialize tracing if enabled
@@ -44,7 +44,7 @@ class TelemetryService:
             try:
                 self._initialize_tracing()
             except Exception as e:
-                logger.warning(f"Failed to initialize OpenTelemetry tracing: {e}. Tracing disabled.")
+                logger.warning(f"Failed to initialize OTel tracing: {e}. Tracing disabled.")
                 self.tracing_enabled = False
 
     def _initialize_logging(self) -> None:

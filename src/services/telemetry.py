@@ -92,14 +92,14 @@ class TelemetryService:
 
     def _initialize_tracing(self) -> None:
         """Initialize OpenTelemetry tracing with OTLP trace exporter
-        
+
         Note: httpx instrumentation must be initialized FIRST, before any httpx
         clients are created. This is because the instrumentation works by
         monkey-patching httpx classes at import time. If httpx clients are
         instantiated before instrumentation, they won't be traced.
         """
         global _httpx_instrumentation_initialized
-        
+
         # Initialize httpx instrumentation FIRST - this must happen before
         # any httpx clients are created to ensure all HTTP requests are traced
         if not _httpx_instrumentation_initialized:

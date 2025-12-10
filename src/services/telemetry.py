@@ -5,6 +5,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+from opentelemetry import trace
 from opentelemetry._logs import SeverityNumber, set_logger_provider
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
@@ -29,7 +30,6 @@ class TelemetryService:
         self.logger_provider = None
         self.tracer_provider = None
         self.otel_logger = None
-        self.httpx_instrumentor = None
 
         # Initialize logging if enabled
         if self.logging_enabled:
@@ -105,13 +105,10 @@ class TelemetryService:
         self.tracer_provider.add_span_processor(BatchSpanProcessor(trace_exporter))
 
         # Set the global tracer provider
-        from opentelemetry import trace
-
         trace.set_tracer_provider(self.tracer_provider)
 
         # httpx instrumentation is initialized separately via _ensure_instrumentation_initialized()
         # to ensure it happens early, before HTTP clients are created
-        self.httpx_instrumentor = HTTPXClientInstrumentor()
 
         logger.info(f"OpenTelemetry tracing initialized with endpoint: {trace_endpoint}")
 
@@ -299,9 +296,3 @@ def get_telemetry_service() -> TelemetryService:
     if _telemetry_service is None:
         _telemetry_service = TelemetryService()
     return _telemetry_service
-
-
-# Initialize instrumentation on module import if tracing is enabled
-# This ensures HTTP clients created after import will be traced
-if config.otel_tracing_enabled:
-    _ensure_instrumentation_initialized()

@@ -23,9 +23,11 @@ dependencies = [
     "opentelemetry-sdk>=1.39.0",
     "opentelemetry-exporter-otlp-proto-http>=1.39.0",
     "opentelemetry-exporter-otlp-proto-grpc>=1.39.0",
+    "opentelemetry-instrumentation-httpx>=0.49b0",
     "python-dotenv>=1.2.1",
     "apscheduler>=3.11.1",
     "httpx>=0.28.1",
+    "urllib3>=2.6.0",
 ]
 
 [dependency-groups]

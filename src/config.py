@@ -62,7 +62,11 @@ class AppConfig(BaseSettings):
     )
 
     # OpenTelemetry
-    otel_enabled: bool = Field(default=True, description="Enable OpenTelemetry logging")
+    otel_enabled: bool = Field(
+        default=True, description="Enable OpenTelemetry logging")
+    otel_tracing_enabled: bool = Field(
+        default=True, description="Enable OpenTelemetry tracing for HTTP requests"
+    )
     otel_endpoint: str = Field(
         default="http://otel-collector.otel.svc.cluster.local:4318",
         description="OpenTelemetry collector endpoint (HTTP/protobuf)",

@@ -1,38 +1,61 @@
-"""OpenTelemetry logging service for query and response telemetry"""
+"""OpenTelemetry logging and tracing service for query and response telemetry"""
 
 import json
 import logging
 from datetime import datetime, timezone
 from typing import Any
 
+from opentelemetry import trace
 from opentelemetry._logs import SeverityNumber, set_logger_provider
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 from opentelemetry.sdk._logs import LoggerProvider
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.resources import SERVICE_NAME, SERVICE_VERSION, Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 from src.config import config
 
 logger = logging.getLogger(__name__)
 
+# Track if httpx instrumentation has been initialized
+_httpx_instrumentation_initialized = False
+
 
 class TelemetryService:
-    """Handle OpenTelemetry logging for queries and responses"""
+    """Handle OpenTelemetry logging and tracing for queries and responses"""
 
     def __init__(self):
-        self.enabled = config.otel_enabled
+        self.logging_enabled = config.otel_enabled
+        self.tracing_enabled = config.otel_tracing_enabled
         self.logger_provider = None
+        self.tracer_provider = None
         self.otel_logger = None
 
-        if self.enabled:
+        # Initialize logging if enabled
+        if self.logging_enabled:
             try:
-                self._initialize_otel()
+                self._initialize_logging()
             except Exception as e:
-                logger.warning(f"Failed to initialize OpenTelemetry: {e}. Telemetry disabled.")
-                self.enabled = False
+                logger.warning(
+                    f"Failed to initialize OTel logging: {e}. Logging disabled."
+                )
+                self.logging_enabled = False
 
-    def _initialize_otel(self) -> None:
-        """Initialize OpenTelemetry with OTLP log exporter"""
+        # Initialize tracing if enabled
+        if self.tracing_enabled:
+            try:
+                self._initialize_tracing()
+            except Exception as e:
+                logger.warning(
+                    f"Failed to initialize OTel tracing: {e}. Tracing disabled."
+                )
+                self.tracing_enabled = False
+
+    def _initialize_logging(self) -> None:
+        """Initialize OpenTelemetry logging with OTLP log exporter"""
         # Create resource with service information
         resource = Resource(
             attributes={
@@ -41,19 +64,21 @@ class TelemetryService:
             }
         )
 
-        # Create logger provider
+        # Initialize logging
         self.logger_provider = LoggerProvider(resource=resource)
 
         # Create OTLP exporter (HTTP/protobuf)
         # The endpoint should point to the logs endpoint
-        endpoint = config.otel_endpoint
-        if not endpoint.endswith("/v1/logs"):
-            endpoint = f"{endpoint.rstrip('/')}/v1/logs"
+        log_endpoint = config.otel_endpoint
+        if not log_endpoint.endswith("/v1/logs"):
+            log_endpoint = f"{log_endpoint.rstrip('/')}/v1/logs"
 
-        otlp_exporter = OTLPLogExporter(endpoint=endpoint)
+        log_exporter = OTLPLogExporter(endpoint=log_endpoint)
 
         # Add batch log record processor
-        self.logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_exporter))
+        self.logger_provider.add_log_record_processor(
+            BatchLogRecordProcessor(log_exporter)
+        )
 
         # Set the global logger provider
         set_logger_provider(self.logger_provider)
@@ -61,7 +86,63 @@ class TelemetryService:
         # Get logger
         self.otel_logger = self.logger_provider.get_logger(__name__)
 
-        logger.info(f"OpenTelemetry logging initialized with endpoint: {endpoint}")
+        logger.info(
+            f"OpenTelemetry logging initialized with endpoint: {log_endpoint}"
+        )
+
+    def _initialize_tracing(self) -> None:
+        """Initialize OpenTelemetry tracing with OTLP trace exporter
+
+        Note: httpx instrumentation must be initialized FIRST, before any httpx
+        clients are created. This is because the instrumentation works by
+        monkey-patching httpx classes at import time. If httpx clients are
+        instantiated before instrumentation, they won't be traced.
+        """
+        global _httpx_instrumentation_initialized
+
+        # Initialize httpx instrumentation FIRST - this must happen before
+        # any httpx clients are created to ensure all HTTP requests are traced
+        if not _httpx_instrumentation_initialized:
+            try:
+                httpx_instrumentor = HTTPXClientInstrumentor()
+                httpx_instrumentor.instrument()
+                _httpx_instrumentation_initialized = True
+                logger.info("HTTP request tracing instrumentation initialized")
+            except Exception as e:
+                logger.warning(
+                    f"Failed to initialize HTTP tracing instrumentation: {e}"
+                )
+                # Continue with tracer provider setup even if instrumentation fails
+
+        # Create resource with service information
+        resource = Resource(
+            attributes={
+                SERVICE_NAME: config.otel_service_name,
+                SERVICE_VERSION: config.otel_service_version,
+            }
+        )
+
+        # Initialize tracing
+        self.tracer_provider = TracerProvider(resource=resource)
+
+        # Create trace exporter (HTTP/protobuf)
+        # The endpoint should point to the traces endpoint
+        trace_endpoint = config.otel_endpoint
+        if not trace_endpoint.endswith("/v1/traces"):
+            # Append /v1/traces if not present
+            trace_endpoint = f"{trace_endpoint.rstrip('/')}/v1/traces"
+
+        trace_exporter = OTLPSpanExporter(endpoint=trace_endpoint)
+
+        # Add batch span processor
+        self.tracer_provider.add_span_processor(BatchSpanProcessor(trace_exporter))
+
+        # Set the global tracer provider
+        trace.set_tracer_provider(self.tracer_provider)
+
+        logger.info(
+            f"OpenTelemetry tracing initialized with endpoint: {trace_endpoint}"
+        )
 
     def log_query(  # noqa: C901
         self,
@@ -83,7 +164,7 @@ class TelemetryService:
             error: The error (if failed)
             metadata: Additional metadata (query time, result count, etc.)
         """
-        if not self.enabled or not self.otel_logger:
+        if not self.logging_enabled or not self.otel_logger:
             return
 
         try:
@@ -126,7 +207,9 @@ class TelemetryService:
                     # Add query info if available
                     query_info = response.get("query_info", {})
                     if "query_time_ms" in query_info:
-                        attributes["response.query_time_ms"] = float(query_info["query_time_ms"])
+                        attributes["response.query_time_ms"] = float(
+                            query_info["query_time_ms"]
+                        )
                     if "total_results" in query_info:
                         attributes["response.total_results"] = int(query_info["total_results"])
 

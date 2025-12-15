@@ -2979,7 +2979,7 @@ requires-dist = [
     { name = "opentelemetry-api", specifier = ">=1.39.1" },
     { name = "opentelemetry-exporter-otlp-proto-grpc", specifier = ">=1.39.1" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.39.1" },
-    { name = "opentelemetry-instrumentation-httpx", specifier = ">=0.49b0" },
+    { name = "opentelemetry-instrumentation-httpx", specifier = ">=0.49b2" },
     { name = "opentelemetry-sdk", specifier = ">=1.39.1" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },

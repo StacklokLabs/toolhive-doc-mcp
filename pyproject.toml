@@ -8,16 +8,13 @@ dependencies = [
     "mcp[cli]>=1.24.0",
     "uvicorn>=0.38.0",
     "sqlite-vec>=0.1.6",
-    "openai>=2.12.0",
     "markdown-it-py>=4.0.0",
     "mdit-py-plugins>=0.5.0",
     "tiktoken>=0.12.0",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.12.0",
-    "aiohttp>=3.13.2",
     "fastembed>=0.7.4",
     "beautifulsoup4>=4.14.3",
-    "lxml>=6.0.2",
     "pyyaml>=6.0.3",
     "opentelemetry-api>=1.39.1",
     "opentelemetry-sdk>=1.39.1",
@@ -27,7 +24,6 @@ dependencies = [
     "python-dotenv>=1.2.1",
     "apscheduler>=3.11.1",
     "httpx>=0.28.1",
-    "urllib3>=2.6.2",
 ]
 
 [dependency-groups]
@@ -39,7 +35,6 @@ dev = [
     "ty>=0.0.1a35",
 ]
 security = [
-    "safety>=3.7.0",
     "bandit[toml]>=1.9.2",
     "pip-audit>=2.10.0",
     "cyclonedx-bom>=7.2.1",

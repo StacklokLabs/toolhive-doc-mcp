@@ -27,8 +27,8 @@ def test_config_defaults():
     config = AppConfig()
 
     # Verify defaults
-    assert config.docs_website_cache_path == "./data/website_cache"
-    assert config.db_path == "./data/docs.db"
+    assert config.docs_website_cache_path == "./.cache/website_cache"
+    assert config.db_path == "./.cache/docs.db"
     assert config.embedding_model == "BAAI/bge-small-en-v1.5"
     assert config.embedding_batch_size == 32
     assert config.chunk_size_tokens == 512
@@ -50,5 +50,5 @@ def test_environment_variable_precedence(monkeypatch):
     assert config.embedding_batch_size == 128
 
     # Verify defaults for non-overridden values
-    assert config.db_path == "./data/docs.db"
+    assert config.db_path == "./.cache/docs.db"
     assert config.chunk_size_tokens == 512

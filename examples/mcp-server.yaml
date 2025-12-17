@@ -1,0 +1,143 @@
+apiVersion: toolhive.stacklok.dev/v1alpha1
+kind: MCPServer
+metadata:
+  name: toolhive-doc-mcp
+  namespace: toolhive-system
+spec:
+  image: toolhive-doc-mcp:test
+  port: 8080
+  targetPort: 8080
+  transport: streamable-http
+  permissionProfile:
+    name: network
+    type: builtin
+  podTemplateSpec:
+    metadata: {}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: mcp
+        imagePullPolicy: Never
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        env:
+        - name: HF_HOME
+          value: /app/.cache/huggingface
+        - name: TRANSFORMERS_CACHE
+          value: /app/.cache/huggingface
+        - name: REFRESH_ENABLED
+          value: "false"
+        resources:
+          limits:
+            cpu: 200m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: cache
+          mountPath: /app/.cache
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        persistentVolumeClaim:
+            claimName: toolhive-doc-cache
+  resources:
+    limits:
+      cpu: 200m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  secrets:
+  - key: token
+    name: github-access-token
+    targetEnvName: GITHUB_TOKEN
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: toolhive-doc-cache
+  namespace: toolhive-system
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: standard
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: toolhive-doc-refresh
+  namespace: toolhive-system
+spec:
+  schedule: "0 2 * * *" # Daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        metadata: {}
+        spec:
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            fsGroup: 65534
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+          - name: refresh
+            image: toolhive-doc-mcp:test
+            imagePullPolicy: Never
+            command: ["/app/.venv/bin/toolhive-refresh"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              runAsNonRoot: true
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                - ALL
+            env:
+            - name: HF_HOME
+              value: /app/.cache/huggingface
+            - name: TRANSFORMERS_CACHE
+              value: /app/.cache/huggingface
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: github-access-token
+                  key: token
+            - name: REFRESH_ENABLED
+              value: "false"
+            resources:
+              limits:
+                cpu: 2000m
+                memory: 2Gi
+              requests:
+                cpu: 1000m
+                memory: 1Gi
+            volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /app/.cache
+          restartPolicy: OnFailure
+          volumes:
+          - name: tmp
+            emptyDir: {}
+          - name: cache
+            persistentVolumeClaim:
+              claimName: toolhive-doc-cache

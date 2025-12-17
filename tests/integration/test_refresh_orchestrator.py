@@ -88,14 +88,13 @@ class TestRefreshOrchestrator:
                 mock_config.db_path = active_db
                 mock_config.db_temp_path = temp_db
 
-                # Execute refresh
+                # Execute refresh and expect exception
                 orchestrator = RefreshOrchestrator()
-                result = orchestrator.refresh_once()
+                with pytest.raises(Exception) as exc_info:
+                    orchestrator.refresh_once()
 
-                # Verify failure is captured
-                assert result.success is False
-                assert "Build failed" in result.error
-                assert result.duration_seconds >= 0
+                # Verify exception message
+                assert "Build failed: network error" in str(exc_info.value)
 
                 # Verify active database is unchanged
                 assert os.path.exists(active_db)
@@ -117,13 +116,13 @@ class TestRefreshOrchestrator:
                 mock_config.db_path = active_db
                 mock_config.db_temp_path = temp_db
 
-                # Execute refresh
+                # Execute refresh and expect exception
                 orchestrator = RefreshOrchestrator()
-                result = orchestrator.refresh_once()
+                with pytest.raises(Exception) as exc_info:
+                    orchestrator.refresh_once()
 
-                # Verify failure
-                assert result.success is False
-                assert "Missing required tables" in result.error
+                # Verify exception message contains expected error
+                assert "Missing required tables" in str(exc_info.value)
 
                 # Verify active database is unchanged
                 assert os.path.exists(active_db)
@@ -192,11 +191,11 @@ class TestRefreshOrchestrator:
                 mock_config.db_temp_path = temp_db
 
                 orchestrator = RefreshOrchestrator()
-                result = orchestrator.refresh_once()
+                with pytest.raises(Exception) as exc_info:
+                    orchestrator.refresh_once()
 
-                # Verify failure captured
-                assert result.success is False
-                assert "Unexpected error" in result.error
+                # Verify exception message
+                assert "Unexpected error during build" in str(exc_info.value)
 
                 # Verify active database still exists and unchanged
                 assert os.path.exists(active_db) == original_exists

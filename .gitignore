@@ -31,7 +31,7 @@ env/
 .env
 
 # Project-specific
-data/*
+.cache/
 
 # IDE
 .vscode/

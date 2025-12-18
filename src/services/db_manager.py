@@ -159,7 +159,11 @@ class DatabaseManager:
 
             # Find all backup files
             backup_pattern = f"{db_name}.backup-*"
-            backups = sorted(db_dir.glob(backup_pattern), key=os.path.getmtime, reverse=True)
+            backups = sorted(
+                db_dir.glob(backup_pattern),
+                key=lambda p: os.path.getmtime(p),
+                reverse=True,
+            )
 
             # Remove old backups (keep only keep_count most recent)
             for backup in backups[keep_count:]:

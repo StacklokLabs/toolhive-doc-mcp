@@ -79,8 +79,9 @@ RUN mkdir -p /app/.cache/fastembed /home/app/.cache && \
     chown -R app:app /app/.cache /home/app/.cache
 USER app
 
-# Set cache directory for fastembed models
+# Set cache directory for fastembed models and tiktoken
 ENV FASTEMBED_CACHE_PATH=/app/.cache/fastembed
+ENV TIKTOKEN_CACHE_DIR=/app/.cache/tiktoken
 
 # Pre-download the embedding model by instantiating TextEmbedding
 RUN --mount=type=cache,target=/app/.cache/uv,uid=1000,gid=1000 \
@@ -92,12 +93,20 @@ print('Downloading embedding model...'); \
 model = TextEmbedding(model_name='BAAI/bge-small-en-v1.5'); \
 print('Model downloaded successfully')"
 
+# Pre-download tiktoken encodings for offline use
+RUN --mount=type=cache,target=/app/.cache/uv,uid=1000,gid=1000 \
+    /app/.venv/bin/python -c "\
+import tiktoken; \
+print('Downloading tiktoken encodings...'); \
+tiktoken.get_encoding('cl100k_base'); \
+print('Tiktoken encodings downloaded successfully')"
+
 # Build documentation database stage (optional - can be skipped if pre-built data provided)
 FROM model-downloader AS db-builder
 
 # Switch to root to create data directory, then switch back to app user
 USER root
-RUN mkdir -p /app/data/website_cache && chown -R app:app /app/data
+RUN mkdir -p /app/.cache/website_cache && chown -R app:app /app/.cache
 USER app
 
 # Copy sources configuration
@@ -105,8 +114,9 @@ COPY --chown=app:app sources.yaml /app/sources.yaml
 
 # Set environment variables for build process
 ENV FASTEMBED_CACHE_PATH=/app/.cache/fastembed
-ENV DOCS_WEBSITE_CACHE_PATH=/app/data/website_cache
-ENV VECTOR_DB_PATH=/app/data/docs.db
+ENV TIKTOKEN_CACHE_DIR=/app/.cache/tiktoken
+ENV DOCS_WEBSITE_CACHE_PATH=/app/.cache/website_cache
+ENV DB_PATH=/app/.cache/docs.db
 
 # Run the build process to generate and embed documentation
 # Use --mount=type=secret for GITHUB_TOKEN to avoid exposing it in the image
@@ -135,28 +145,33 @@ RUN chown app:app /app
 # Copy the environment
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 
-# Copy pre-downloaded fastembed models
+# Copy pre-downloaded fastembed and tiktoken models
 COPY --from=model-downloader --chown=app:app /app/.cache/fastembed /app/.cache/fastembed
+COPY --from=model-downloader --chown=app:app /app/.cache/tiktoken /app/.cache/tiktoken
 
 # Switch to non-root user
 USER app
 
 # Set default environment variables for container deployment
 ENV FASTEMBED_CACHE_PATH=/app/.cache/fastembed
+ENV TIKTOKEN_CACHE_DIR=/app/.cache/tiktoken
 ENV DOCS_WEBSITE_URL=https://docs.stacklok.com/toolhive
-ENV DOCS_WEBSITE_CACHE_PATH=/app/data/website_cache
+ENV DOCS_WEBSITE_CACHE_PATH=/app/.cache/website_cache
 ENV DOCS_WEBSITE_PATH_PREFIX=/toolhive
-ENV VECTOR_DB_PATH=/app/data/docs.db
+ENV DB_PATH=/app/.cache/docs.db
+
+# Include sources.yaml for build process when refreshing the database
+COPY --chown=app:app sources.yaml /app/sources.yaml
 
 # Run the MCP server using the console script entry point
 CMD ["/app/.venv/bin/toolhive-doc-mcp"]
 
 # Default runner - builds database during image build (slower for multi-platform)
 FROM runner-base AS runner
-COPY --from=db-builder --chown=app:app /app/data /app/data
+COPY --from=db-builder --chown=app:app /app/.cache /app/.cache
 
 # Pre-built runner - uses external pre-built database (faster for multi-platform)
 # Usage: --build-context prebuilt-data=./path/to/data --target runner-prebuilt
 FROM scratch AS prebuilt-data
 FROM runner-base AS runner-prebuilt
-COPY --from=prebuilt-data --chown=app:app / /app/data/
+COPY --from=prebuilt-data --chown=app:app / /app/.cache/

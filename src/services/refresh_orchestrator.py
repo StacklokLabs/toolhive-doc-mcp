@@ -17,6 +17,12 @@ from src.services.db_manager import DatabaseManager
 logger = logging.getLogger(__name__)
 
 
+class RefreshException(Exception):
+    """Raised when refresh operation fails"""
+
+    pass
+
+
 class RefreshOrchestrator:
     """Orchestrates background refresh of documentation database"""
 
@@ -91,7 +97,13 @@ class RefreshOrchestrator:
         We use asyncio.run() to bridge to async build operations.
 
         Returns:
-            RefreshResult: Result of refresh operation
+            RefreshResult: Result of refresh operation on success
+
+        Raises:
+            RefreshException: If any step of the refresh process fails,
+                including build failures, database validation errors,
+                or swap operations. The active database is preserved
+                when exceptions occur.
         """
         start_time = datetime.now()
 
@@ -134,13 +146,6 @@ class RefreshOrchestrator:
             )
 
         except Exception as e:
-            logger.error(f"Refresh failed with exception: {e}", exc_info=True)
-            end_time = datetime.now()
-            result = RefreshResult(
-                success=False,
-                start_time=start_time,
-                end_time=end_time,
-                duration_seconds=(end_time - start_time).total_seconds(),
-                error=str(e),
-            )
-            return result
+            error_msg = f"Refresh failed with exception: {e}"
+            logger.error(error_msg, exc_info=True)
+            raise RefreshException(error_msg) from e

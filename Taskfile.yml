@@ -65,6 +65,13 @@ tasks:
     deps:
       - install
 
+  rebuild-db:
+    desc: Re-Build documentation database (fetch, parse, chunk, embed, and index)
+    cmds:
+      - uv run toolhive-refresh
+    deps:
+      - install
+
   build:
     desc: Build multi-architecture container image
     cmds:

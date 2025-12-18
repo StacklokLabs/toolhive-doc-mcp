@@ -1,6 +1,7 @@
 """Utility to load sources configuration from YAML file"""
 
 import logging
+import os
 from pathlib import Path
 
 import yaml
@@ -40,9 +41,22 @@ def load_sources_config(config_path: str | Path = "sources.yaml") -> SourcesConf
             raise ValueError("Sources configuration file is empty")
 
         sources_config = SourcesConfig(**data)
+
+        # Allow environment variable to override refresh.enabled
+        refresh_enabled_env = os.getenv("REFRESH_ENABLED")
+        if refresh_enabled_env is not None:
+            refresh_enabled = refresh_enabled_env.lower() in ("true", "1", "yes")
+            if sources_config.refresh.enabled != refresh_enabled:
+                logger.info(
+                    f"Overriding refresh.enabled from env: {refresh_enabled} "
+                    f"(was: {sources_config.refresh.enabled})"
+                )
+                sources_config.refresh.enabled = refresh_enabled
+
         logger.info(f"Loaded sources configuration from {config_path}")
         logger.info(f"  Enabled websites: {len(sources_config.get_enabled_websites())}")
         logger.info(f"  Enabled GitHub repos: {len(sources_config.get_enabled_github_repos())}")
+        logger.info(f"  Background refresh enabled: {sources_config.refresh.enabled}")
 
         return sources_config
 

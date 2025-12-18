@@ -10,14 +10,14 @@ class AppConfig(BaseSettings):
     # Documentation source - Website-based
     # Note: Website URLs and fetching configuration are now in sources.yaml
     docs_website_cache_path: str = Field(
-        default="./data/website_cache",
+        default="./.cache/website_cache",
         description="Local cache directory for website content",
     )
 
     # Database
-    db_path: str = Field(default="./data/docs.db", description="SQLite database file path")
+    db_path: str = Field(default="./.cache/docs.db", description="SQLite database file path")
     db_temp_path: str = Field(
-        default="./data/docs.db.new", description="Temporary database path for refresh operations"
+        default="./.cache/docs.db.new", description="Temporary database path for refresh operations"
     )
     vector_distance_metric: str = Field(
         default="cosine", description="Distance metric for vector similarity (cosine, l2, ip)"
@@ -28,7 +28,7 @@ class AppConfig(BaseSettings):
         default="BAAI/bge-small-en-v1.5", description="Local embedding model name (fastembed)"
     )
     fastembed_cache_dir: str = Field(
-        default="./data/models", description="Directory to cache embedding model"
+        default="./.cache/models", description="Directory to cache embedding model"
     )
     embedding_batch_size: int = Field(
         default=32, ge=1, le=256, description="Batch size for embedding generation"

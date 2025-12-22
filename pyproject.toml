@@ -22,7 +22,7 @@ dependencies = [
     "opentelemetry-exporter-otlp-proto-grpc>=1.39.1",
     "opentelemetry-instrumentation-httpx>=0.49b2",
     "python-dotenv>=1.2.1",
-    "apscheduler>=3.11.1",
+    "apscheduler>=3.11.2",
     "httpx>=0.28.1",
     "lxml>=6.0.2",
 ]

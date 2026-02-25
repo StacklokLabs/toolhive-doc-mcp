@@ -4,10 +4,69 @@ on:
   push:
     tags:
       - 'v*'
+  schedule:
+    - cron: '0 3 * * 1'   # Weekly on Mondays at 3 AM UTC
+  workflow_dispatch:
 
 jobs:
+  determine_version:
+    name: Determine Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
+      weekly_tag: ${{ steps.version.outputs.WEEKLY_TAG }}
+      is_new_version: ${{ steps.version.outputs.IS_NEW_VERSION }}
+      is_weekly: ${{ steps.version.outputs.IS_WEEKLY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Compute version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            # Tag-push event: extract version from GITHUB_REF
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+            echo "WEEKLY_TAG=" >> $GITHUB_OUTPUT
+            echo "IS_NEW_VERSION=false" >> $GITHUB_OUTPUT
+            echo "IS_WEEKLY=false" >> $GITHUB_OUTPUT
+          else
+            # Schedule or workflow_dispatch event
+            LATEST_TAG=$(git tag -l 'v*' | grep -v '-' | sort -V | tail -n 1)
+            echo "Latest base version tag: ${LATEST_TAG}"
+
+            COMMITS_SINCE=$(git rev-list "${LATEST_TAG}..HEAD" --count)
+            echo "Commits since ${LATEST_TAG}: ${COMMITS_SINCE}"
+
+            # Strip the 'v' prefix to get the version number
+            CURRENT_VERSION="${LATEST_TAG#v}"
+
+            if [[ "${COMMITS_SINCE}" -gt 0 ]]; then
+              # Bump patch version
+              MAJOR=$(echo "${CURRENT_VERSION}" | cut -d. -f1)
+              MINOR=$(echo "${CURRENT_VERSION}" | cut -d. -f2)
+              PATCH=$(echo "${CURRENT_VERSION}" | cut -d. -f3)
+              NEW_PATCH=$((PATCH + 1))
+              VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
+              IS_NEW_VERSION="true"
+            else
+              VERSION="${CURRENT_VERSION}"
+              IS_NEW_VERSION="false"
+            fi
+
+            WEEKLY_TAG="v${VERSION}-$(date -u +%Y%m%d)"
+            echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+            echo "WEEKLY_TAG=${WEEKLY_TAG}" >> $GITHUB_OUTPUT
+            echo "IS_NEW_VERSION=${IS_NEW_VERSION}" >> $GITHUB_OUTPUT
+            echo "IS_WEEKLY=true" >> $GITHUB_OUTPUT
+          fi
+
   code_checks:
     name: Code Checks
+    needs: determine_version
     uses: ./.github/workflows/code-checks.yml
 
   build_image:
@@ -16,16 +75,18 @@ jobs:
     uses: ./.github/workflows/image-build.yml
 
   release:
-    needs: build_image
+    needs: [build_image, determine_version]
     name: Release Container
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
       id-token: write
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
 
       - name: Download database artifact
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
@@ -43,23 +104,51 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract tag version
+      - name: Set version variables
         id: tag
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: |
+          echo "VERSION=${{ needs.determine_version.outputs.version }}" >> $GITHUB_OUTPUT
+          echo "WEEKLY_TAG=${{ needs.determine_version.outputs.weekly_tag }}" >> $GITHUB_OUTPUT
+          echo "IS_NEW_VERSION=${{ needs.determine_version.outputs.is_new_version }}" >> $GITHUB_OUTPUT
+          echo "IS_WEEKLY=${{ needs.determine_version.outputs.is_weekly }}" >> $GITHUB_OUTPUT
 
       - name: Set repository owner lowercase
         id: repo_owner
         run: echo "OWNER=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Compute Docker tags
+        id: docker_tags
+        run: |
+          IMAGE="ghcr.io/${{ steps.repo_owner.outputs.OWNER }}/toolhive-doc-mcp"
+          VERSION="${{ steps.tag.outputs.VERSION }}"
+          IS_WEEKLY="${{ steps.tag.outputs.IS_WEEKLY }}"
+          IS_NEW_VERSION="${{ steps.tag.outputs.IS_NEW_VERSION }}"
+          WEEKLY_TAG="${{ steps.tag.outputs.WEEKLY_TAG }}"
+
+          if [[ "${IS_WEEKLY}" == "false" ]]; then
+            # Tag-push: latest, v0.0.10, 0.0.10
+            TAGS="${IMAGE}:latest"
+            TAGS="${TAGS},${IMAGE}:v${VERSION}"
+            TAGS="${TAGS},${IMAGE}:${VERSION}"
+          elif [[ "${IS_NEW_VERSION}" == "true" ]]; then
+            # Weekly with version bump: latest, v0.0.10-20260224, v0.0.10, 0.0.10
+            TAGS="${IMAGE}:latest"
+            TAGS="${TAGS},${IMAGE}:${WEEKLY_TAG}"
+            TAGS="${TAGS},${IMAGE}:v${VERSION}"
+            TAGS="${TAGS},${IMAGE}:${VERSION}"
+          else
+            # Weekly with no new commits: latest, v0.0.9-20260224
+            TAGS="${IMAGE}:latest"
+            TAGS="${TAGS},${IMAGE}:${WEEKLY_TAG}"
+          fi
+
+          echo "TAGS=${TAGS}" >> $GITHUB_OUTPUT
 
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
           images: ghcr.io/${{ steps.repo_owner.outputs.OWNER }}/toolhive-doc-mcp
-          tags: |
-            type=ref,event=tag
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=${{ steps.tag.outputs.VERSION }}
           labels: |
             org.opencontainers.image.title=toolhive-doc-mcp
             org.opencontainers.image.description=Toolhive Doc MCP Server
@@ -78,12 +167,18 @@ jobs:
           target: runner-prebuilt
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.docker_tags.outputs.TAGS }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=multi-platform
           cache-to: type=gha,mode=max,scope=multi-platform
           provenance: mode=max
           sbom: true
+
+      - name: Create git tag for version bump
+        if: steps.tag.outputs.IS_NEW_VERSION == 'true'
+        run: |
+          git tag "v${{ steps.tag.outputs.VERSION }}"
+          git push origin "v${{ steps.tag.outputs.VERSION }}"
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
@@ -92,14 +187,26 @@ jobs:
         env:
           REGISTRY: ghcr.io/${{ steps.repo_owner.outputs.OWNER }}/toolhive-doc-mcp
         run: |
-          # Docker tags do not allow the '+' character, so replace it with '_' for compatibility.
-          TAG=$(echo "${{ steps.tag.outputs.VERSION }}" | sed 's/+/_/g')
-          # Sign the tagged image
-          cosign sign -y $REGISTRY:$TAG
+          VERSION="${{ steps.tag.outputs.VERSION }}"
+          IS_WEEKLY="${{ steps.tag.outputs.IS_WEEKLY }}"
+          IS_NEW_VERSION="${{ steps.tag.outputs.IS_NEW_VERSION }}"
+          WEEKLY_TAG="${{ steps.tag.outputs.WEEKLY_TAG }}"
 
-          # Sign the latest tag, but only if is_default_branch is true
-          if [[ "${{ steps.meta.outputs.is_default_branch }}" == "true" ]]; then
-            cosign sign -y $REGISTRY:latest
+          # Always sign the latest tag
+          cosign sign -y $REGISTRY:latest
+
+          if [[ "${IS_WEEKLY}" == "false" ]]; then
+            # Tag-push: sign v0.0.10 and 0.0.10
+            cosign sign -y "$REGISTRY:v${VERSION}"
+            cosign sign -y "$REGISTRY:${VERSION}"
+          elif [[ "${IS_NEW_VERSION}" == "true" ]]; then
+            # Weekly with version bump: sign timestamped, v0.0.10, and 0.0.10
+            cosign sign -y "$REGISTRY:${WEEKLY_TAG}"
+            cosign sign -y "$REGISTRY:v${VERSION}"
+            cosign sign -y "$REGISTRY:${VERSION}"
+          else
+            # Weekly with no new commits: sign timestamped tag
+            cosign sign -y "$REGISTRY:${WEEKLY_TAG}"
           fi
 
       - name: Trigger infra image update
@@ -108,7 +215,7 @@ jobs:
         env:
           INFRA_REPO: stacklok/infra
           IMAGE_NAME: ghcr.io/${{ steps.repo_owner.outputs.OWNER }}/toolhive-doc-mcp
-          IMAGE_TAG: ${{ github.ref_name }}  # e.g., v0.0.6
+          IMAGE_TAG: ${{ steps.tag.outputs.IS_WEEKLY == 'true' && steps.tag.outputs.WEEKLY_TAG || github.ref_name }}
           GH_TOKEN: ${{ secrets.INFRA_DISPATCH_TOKEN }}
         run: |
           gh api repos/$INFRA_REPO/dispatches \

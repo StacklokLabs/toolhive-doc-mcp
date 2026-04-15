@@ -214,17 +214,17 @@ class HtmlParser:
             "meta", attrs={"property": "og:description"}
         )
         if desc_tag and desc_tag.get("content"):
-            metadata["description"] = desc_tag["content"]
+            metadata["description"] = str(desc_tag["content"])
 
         # Extract meta author
         author_tag = soup.find("meta", attrs={"name": "author"})
         if author_tag and author_tag.get("content"):
-            metadata["author"] = author_tag["content"]
+            metadata["author"] = str(author_tag["content"])
 
         # Extract meta keywords
         keywords_tag = soup.find("meta", attrs={"name": "keywords"})
         if keywords_tag and keywords_tag.get("content"):
-            metadata["keywords"] = keywords_tag["content"]
+            metadata["keywords"] = str(keywords_tag["content"])
 
         return metadata
 
@@ -268,7 +268,7 @@ class HtmlParser:
         # Try og:title meta tag
         og_title = soup.find("meta", attrs={"property": "og:title"})
         if og_title and og_title.get("content"):
-            return og_title["content"]
+            return str(og_title["content"])
 
         return None
 

@@ -15,7 +15,6 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.VERSION }}
       weekly_tag: ${{ steps.version.outputs.WEEKLY_TAG }}
-      is_new_version: ${{ steps.version.outputs.IS_NEW_VERSION }}
       is_weekly: ${{ steps.version.outputs.IS_WEEKLY }}
     steps:
       - name: Checkout code
@@ -29,40 +28,17 @@ jobs:
           if [[ "${{ github.event_name }}" == "push" ]]; then
             # Tag-push event: extract version from GITHUB_REF
             VERSION="${GITHUB_REF#refs/tags/v}"
-            echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
-            echo "WEEKLY_TAG=" >> $GITHUB_OUTPUT
-            echo "IS_NEW_VERSION=false" >> $GITHUB_OUTPUT
-            echo "IS_WEEKLY=false" >> $GITHUB_OUTPUT
           else
-            # Schedule or workflow_dispatch event
+            # Schedule or workflow_dispatch: content rebuild on latest semver
             LATEST_TAG=$(git tag -l 'v*' | grep -v '-' | sort -V | tail -n 1)
             echo "Latest base version tag: ${LATEST_TAG}"
-
-            COMMITS_SINCE=$(git rev-list "${LATEST_TAG}..HEAD" --count)
-            echo "Commits since ${LATEST_TAG}: ${COMMITS_SINCE}"
-
-            # Strip the 'v' prefix to get the version number
-            CURRENT_VERSION="${LATEST_TAG#v}"
-
-            if [[ "${COMMITS_SINCE}" -gt 0 ]]; then
-              # Bump patch version
-              MAJOR=$(echo "${CURRENT_VERSION}" | cut -d. -f1)
-              MINOR=$(echo "${CURRENT_VERSION}" | cut -d. -f2)
-              PATCH=$(echo "${CURRENT_VERSION}" | cut -d. -f3)
-              NEW_PATCH=$((PATCH + 1))
-              VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
-              IS_NEW_VERSION="true"
-            else
-              VERSION="${CURRENT_VERSION}"
-              IS_NEW_VERSION="false"
-            fi
-
-            WEEKLY_TAG="v${VERSION}-$(date -u +%Y%m%d)"
-            echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
-            echo "WEEKLY_TAG=${WEEKLY_TAG}" >> $GITHUB_OUTPUT
-            echo "IS_NEW_VERSION=${IS_NEW_VERSION}" >> $GITHUB_OUTPUT
-            echo "IS_WEEKLY=true" >> $GITHUB_OUTPUT
+            VERSION="${LATEST_TAG#v}"
           fi
+
+          WEEKLY_TAG="v${VERSION}-$(date -u +%Y%m%d)"
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "WEEKLY_TAG=${WEEKLY_TAG}" >> $GITHUB_OUTPUT
+          echo "IS_WEEKLY=${{ github.event_name != 'push' }}" >> $GITHUB_OUTPUT
 
   code_checks:
     name: Code Checks
@@ -109,7 +85,6 @@ jobs:
         run: |
           echo "VERSION=${{ needs.determine_version.outputs.version }}" >> $GITHUB_OUTPUT
           echo "WEEKLY_TAG=${{ needs.determine_version.outputs.weekly_tag }}" >> $GITHUB_OUTPUT
-          echo "IS_NEW_VERSION=${{ needs.determine_version.outputs.is_new_version }}" >> $GITHUB_OUTPUT
           echo "IS_WEEKLY=${{ needs.determine_version.outputs.is_weekly }}" >> $GITHUB_OUTPUT
 
       - name: Set repository owner lowercase
@@ -122,24 +97,16 @@ jobs:
           IMAGE="ghcr.io/${{ steps.repo_owner.outputs.OWNER }}/toolhive-doc-mcp"
           VERSION="${{ steps.tag.outputs.VERSION }}"
           IS_WEEKLY="${{ steps.tag.outputs.IS_WEEKLY }}"
-          IS_NEW_VERSION="${{ steps.tag.outputs.IS_NEW_VERSION }}"
           WEEKLY_TAG="${{ steps.tag.outputs.WEEKLY_TAG }}"
 
+          # Always include latest and date-stamped tag
+          TAGS="${IMAGE}:latest"
+          TAGS="${TAGS},${IMAGE}:${WEEKLY_TAG}"
+
           if [[ "${IS_WEEKLY}" == "false" ]]; then
-            # Tag-push: latest, v0.0.10, 0.0.10
-            TAGS="${IMAGE}:latest"
+            # Tag-push: also publish semver tags
             TAGS="${TAGS},${IMAGE}:v${VERSION}"
             TAGS="${TAGS},${IMAGE}:${VERSION}"
-          elif [[ "${IS_NEW_VERSION}" == "true" ]]; then
-            # Weekly with version bump: latest, v0.0.10-20260224, v0.0.10, 0.0.10
-            TAGS="${IMAGE}:latest"
-            TAGS="${TAGS},${IMAGE}:${WEEKLY_TAG}"
-            TAGS="${TAGS},${IMAGE}:v${VERSION}"
-            TAGS="${TAGS},${IMAGE}:${VERSION}"
-          else
-            # Weekly with no new commits: latest, v0.0.9-20260224
-            TAGS="${IMAGE}:latest"
-            TAGS="${TAGS},${IMAGE}:${WEEKLY_TAG}"
           fi
 
           echo "TAGS=${TAGS}" >> $GITHUB_OUTPUT
@@ -174,12 +141,6 @@ jobs:
           provenance: mode=max
           sbom: true
 
-      - name: Create git tag for version bump
-        if: steps.tag.outputs.IS_NEW_VERSION == 'true'
-        run: |
-          git tag "v${{ steps.tag.outputs.VERSION }}"
-          git push origin "v${{ steps.tag.outputs.VERSION }}"
-
       - name: Install Cosign
         uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
 
@@ -189,24 +150,16 @@ jobs:
         run: |
           VERSION="${{ steps.tag.outputs.VERSION }}"
           IS_WEEKLY="${{ steps.tag.outputs.IS_WEEKLY }}"
-          IS_NEW_VERSION="${{ steps.tag.outputs.IS_NEW_VERSION }}"
           WEEKLY_TAG="${{ steps.tag.outputs.WEEKLY_TAG }}"
 
-          # Always sign the latest tag
-          cosign sign -y $REGISTRY:latest
+          # Always sign latest and date-stamped tags
+          cosign sign -y "$REGISTRY:latest"
+          cosign sign -y "$REGISTRY:${WEEKLY_TAG}"
 
           if [[ "${IS_WEEKLY}" == "false" ]]; then
-            # Tag-push: sign v0.0.10 and 0.0.10
+            # Tag-push: also sign semver tags
             cosign sign -y "$REGISTRY:v${VERSION}"
             cosign sign -y "$REGISTRY:${VERSION}"
-          elif [[ "${IS_NEW_VERSION}" == "true" ]]; then
-            # Weekly with version bump: sign timestamped, v0.0.10, and 0.0.10
-            cosign sign -y "$REGISTRY:${WEEKLY_TAG}"
-            cosign sign -y "$REGISTRY:v${VERSION}"
-            cosign sign -y "$REGISTRY:${VERSION}"
-          else
-            # Weekly with no new commits: sign timestamped tag
-            cosign sign -y "$REGISTRY:${WEEKLY_TAG}"
           fi
 
       - name: Trigger infra image update
@@ -215,7 +168,7 @@ jobs:
         env:
           INFRA_REPO: stacklok/infra
           IMAGE_NAME: ghcr.io/${{ steps.repo_owner.outputs.OWNER }}/toolhive-doc-mcp
-          IMAGE_TAG: ${{ steps.tag.outputs.IS_WEEKLY == 'true' && steps.tag.outputs.WEEKLY_TAG || github.ref_name }}
+          IMAGE_TAG: ${{ steps.tag.outputs.WEEKLY_TAG }}
           GH_TOKEN: ${{ secrets.INFRA_DISPATCH_TOKEN }}
         run: |
           gh api repos/$INFRA_REPO/dispatches \

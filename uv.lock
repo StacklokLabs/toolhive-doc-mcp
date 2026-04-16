@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.13"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -2503,7 +2503,7 @@ requires-dist = [
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.41.0" },
     { name = "opentelemetry-instrumentation-httpx", specifier = ">=0.49b2" },
     { name = "opentelemetry-sdk", specifier = ">=1.41.0" },
-    { name = "pydantic", specifier = ">=2.12.5" },
+    { name = "pydantic", specifier = ">=2.13.1" },
     { name = "pydantic-settings", specifier = ">=2.13.1" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "pyyaml", specifier = ">=6.0.3" },

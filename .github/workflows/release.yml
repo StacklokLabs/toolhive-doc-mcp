@@ -28,20 +28,17 @@ jobs:
           if [[ "${{ github.event_name }}" == "push" ]]; then
             # Tag-push event: extract version from GITHUB_REF
             VERSION="${GITHUB_REF#refs/tags/v}"
-            echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
-            echo "WEEKLY_TAG=" >> $GITHUB_OUTPUT
-            echo "IS_WEEKLY=false" >> $GITHUB_OUTPUT
           else
             # Schedule or workflow_dispatch: content rebuild on latest semver
             LATEST_TAG=$(git tag -l 'v*' | grep -v '-' | sort -V | tail -n 1)
             echo "Latest base version tag: ${LATEST_TAG}"
             VERSION="${LATEST_TAG#v}"
-
-            WEEKLY_TAG="v${VERSION}-$(date -u +%Y%m%d)"
-            echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
-            echo "WEEKLY_TAG=${WEEKLY_TAG}" >> $GITHUB_OUTPUT
-            echo "IS_WEEKLY=true" >> $GITHUB_OUTPUT
           fi
+
+          WEEKLY_TAG="v${VERSION}-$(date -u +%Y%m%d)"
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "WEEKLY_TAG=${WEEKLY_TAG}" >> $GITHUB_OUTPUT
+          echo "IS_WEEKLY=${{ github.event_name != 'push' }}" >> $GITHUB_OUTPUT
 
   code_checks:
     name: Code Checks
@@ -102,15 +99,14 @@ jobs:
           IS_WEEKLY="${{ steps.tag.outputs.IS_WEEKLY }}"
           WEEKLY_TAG="${{ steps.tag.outputs.WEEKLY_TAG }}"
 
+          # Always include latest and date-stamped tag
+          TAGS="${IMAGE}:latest"
+          TAGS="${TAGS},${IMAGE}:${WEEKLY_TAG}"
+
           if [[ "${IS_WEEKLY}" == "false" ]]; then
-            # Tag-push: new semver release
-            TAGS="${IMAGE}:latest"
+            # Tag-push: also publish semver tags
             TAGS="${TAGS},${IMAGE}:v${VERSION}"
             TAGS="${TAGS},${IMAGE}:${VERSION}"
-          else
-            # Weekly content rebuild: date tag on current semver
-            TAGS="${IMAGE}:latest"
-            TAGS="${TAGS},${IMAGE}:${WEEKLY_TAG}"
           fi
 
           echo "TAGS=${TAGS}" >> $GITHUB_OUTPUT
@@ -156,16 +152,14 @@ jobs:
           IS_WEEKLY="${{ steps.tag.outputs.IS_WEEKLY }}"
           WEEKLY_TAG="${{ steps.tag.outputs.WEEKLY_TAG }}"
 
-          # Always sign the latest tag
-          cosign sign -y $REGISTRY:latest
+          # Always sign latest and date-stamped tags
+          cosign sign -y "$REGISTRY:latest"
+          cosign sign -y "$REGISTRY:${WEEKLY_TAG}"
 
           if [[ "${IS_WEEKLY}" == "false" ]]; then
-            # Tag-push: sign semver tags
+            # Tag-push: also sign semver tags
             cosign sign -y "$REGISTRY:v${VERSION}"
             cosign sign -y "$REGISTRY:${VERSION}"
-          else
-            # Weekly content rebuild: sign date tag
-            cosign sign -y "$REGISTRY:${WEEKLY_TAG}"
           fi
 
       - name: Trigger infra image update
@@ -174,7 +168,7 @@ jobs:
         env:
           INFRA_REPO: stacklok/infra
           IMAGE_NAME: ghcr.io/${{ steps.repo_owner.outputs.OWNER }}/toolhive-doc-mcp
-          IMAGE_TAG: ${{ steps.tag.outputs.IS_WEEKLY == 'true' && steps.tag.outputs.WEEKLY_TAG || github.ref_name }}
+          IMAGE_TAG: ${{ steps.tag.outputs.WEEKLY_TAG }}
           GH_TOKEN: ${{ secrets.INFRA_DISPATCH_TOKEN }}
         run: |
           gh api repos/$INFRA_REPO/dispatches \

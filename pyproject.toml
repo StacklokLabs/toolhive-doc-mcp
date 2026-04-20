@@ -24,7 +24,7 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "apscheduler>=3.11.2",
     "httpx>=0.28.1",
-    "lxml>=6.0.4",
+    "lxml>=6.1.0",
 ]
 
 [dependency-groups]

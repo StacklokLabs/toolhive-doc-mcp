@@ -5,7 +5,7 @@ description = "MCP server for semantic search over Stacklok documentation"
 requires-python = ">=3.13"
 dependencies = [
     "fastmcp>=3.2.4",
-    "mcp[cli]>=1.27.0",
+    "mcp[cli]>=1.27.1",
     "uvicorn>=0.46.0",
     "sqlite-vec>=0.1.9",
     "markdown-it-py>=4.0.0",

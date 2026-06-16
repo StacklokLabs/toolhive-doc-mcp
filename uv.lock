@@ -2573,7 +2573,7 @@ dev = [
 security = [
     { name = "bandit", extras = ["toml"], specifier = ">=1.9.4" },
     { name = "cyclonedx-bom", specifier = ">=7.3.0" },
-    { name = "pip-audit", specifier = ">=2.10.0" },
+    { name = "pip-audit", specifier = ">=2.10.1" },
 ]
 
 [[package]]

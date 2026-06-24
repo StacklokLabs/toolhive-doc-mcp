@@ -2540,7 +2540,7 @@ security = [
 [package.metadata]
 requires-dist = [
     { name = "apscheduler", specifier = ">=3.11.2" },
-    { name = "beautifulsoup4", specifier = ">=4.14.3" },
+    { name = "beautifulsoup4", specifier = ">=4.15.0" },
     { name = "fastembed", specifier = ">=0.8.0" },
     { name = "fastmcp", specifier = ">=3.3.1" },
     { name = "httpx", specifier = ">=0.28.1" },

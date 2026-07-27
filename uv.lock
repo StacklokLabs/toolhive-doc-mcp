@@ -432,7 +432,7 @@ wheels = [
 
 [[package]]
 name = "cyclonedx-bom"
-version = "7.3.0"
+version = "7.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "chardet" },
@@ -441,9 +441,9 @@ dependencies = [
     { name = "packaging" },
     { name = "pip-requirements-parser" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6c/e1/700aea05811f8988a60636e045914ffb155ce5318879f14b5c9016a12da5/cyclonedx_bom-7.3.0.tar.gz", hash = "sha256:d54080d65731980945de38e52009a5e5711f4a3c31377a3d13af96eaca5fcf3d", size = 4420319, upload-time = "2026-03-30T12:30:08.438Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c7/a2/ab75601071afb20352758ef20fd7983cd290f807cabd672eaa28eed45018/cyclonedx_bom-7.3.1.tar.gz", hash = "sha256:ebd99dc2cf62a7067e327bef2b2ffada99d57ed3fda2db6c4c8f3004e5bfd3cf", size = 4420707, upload-time = "2026-07-23T13:57:30.18Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c6/f8/285a990b17b44dac4899b14fbeab81a28f3bb828621d4a6c449631249136/cyclonedx_bom-7.3.0-py3-none-any.whl", hash = "sha256:73d7d76b3a28ebadc50eabf424cbcf128785a74b8a59ce7893da2e29cfaab585", size = 60924, upload-time = "2026-03-30T12:30:06.943Z" },
+    { url = "https://files.pythonhosted.org/packages/1a/8d/e464ae953209f1379e50f704fdc86b9695883e7d6f25464796981261bb1f/cyclonedx_bom-7.3.1-py3-none-any.whl", hash = "sha256:8c5adccefd593e89c0500463649c232625cee8e38dae1a433e057dfa495eff08", size = 60945, upload-time = "2026-07-23T13:57:28.463Z" },
 ]
 
 [[package]]
@@ -2544,7 +2544,7 @@ dev = [
 ]
 security = [
     { name = "bandit", extras = ["toml"], specifier = ">=1.9.4" },
-    { name = "cyclonedx-bom", specifier = ">=7.3.0" },
+    { name = "cyclonedx-bom", specifier = ">=7.3.1" },
     { name = "pip-audit", specifier = ">=2.10.1" },
 ]
 

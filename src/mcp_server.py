@@ -8,7 +8,6 @@ from uuid import UUID
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastmcp import FastMCP
 from fastmcp.exceptions import McpError
-from mcp.types import ErrorData
 from starlette.responses import JSONResponse
 
 from src.config import config
@@ -56,12 +55,8 @@ async def _get_services() -> tuple[VectorStore, SearchService]:
             # Check if database is initialized
             if not await _vector_store.health_check():
                 raise McpError(
-                    ErrorData(
-                        code=-32001,
-                        message=(
-                            "Documentation database is not initialized. Run build process first."
-                        ),
-                    )
+                    code=-32001,
+                    message="Documentation database is not initialized. Run build process first.",
                 )
 
         if not _search_service:
@@ -99,12 +94,10 @@ async def query_docs(
         except ValueError as e:
             error = e
             raise McpError(
-                ErrorData(
-                    code=-32602,
-                    message=(
-                        f"Invalid query_type: {query_type}. Must be: semantic, keyword, or hybrid"
-                    ),
-                )
+                code=-32602,
+                message=(
+                    f"Invalid query_type: {query_type}. Must be: semantic, keyword, or hybrid"
+                ),
             ) from e
 
         # Create query object
@@ -117,7 +110,7 @@ async def query_docs(
             return result
         except Exception as e:
             error = e
-            raise McpError(ErrorData(code=-32603, message=f"Search failed: {str(e)}")) from e
+            raise McpError(code=-32603, message=f"Search failed: {str(e)}") from e
 
     finally:
         # Log telemetry regardless of success/failure
@@ -155,7 +148,7 @@ async def get_chunk(chunk_id: str) -> dict[str, Any]:
         except ValueError as e:
             error = e
             raise McpError(
-                ErrorData(code=-32602, message=f"chunk_id must be a valid UUID, got: {chunk_id}")
+                code=-32602, message=f"chunk_id must be a valid UUID, got: {chunk_id}"
             ) from e
 
         # Get vector store
@@ -166,7 +159,7 @@ async def get_chunk(chunk_id: str) -> dict[str, Any]:
 
         if not chunk:
             error = ValueError(f"Chunk with ID {chunk_id} not found")
-            raise McpError(ErrorData(code=-32002, message=f"Chunk with ID {chunk_id} not found"))
+            raise McpError(code=-32002, message=f"Chunk with ID {chunk_id} not found")
 
         response = chunk.model_dump()
         return response

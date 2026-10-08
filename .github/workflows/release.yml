@@ -161,18 +161,3 @@ jobs:
             cosign sign -y "$REGISTRY:v${VERSION}"
             cosign sign -y "$REGISTRY:${VERSION}"
           fi
-
-      - name: Trigger infra image update
-        if: success()
-        continue-on-error: true
-        env:
-          INFRA_REPO: stacklok/infra
-          IMAGE_NAME: ghcr.io/${{ steps.repo_owner.outputs.OWNER }}/toolhive-doc-mcp
-          IMAGE_TAG: ${{ steps.tag.outputs.WEEKLY_TAG }}
-          GH_TOKEN: ${{ secrets.INFRA_DISPATCH_TOKEN }}
-        run: |
-          gh api repos/$INFRA_REPO/dispatches \
-            -X POST \
-            -f event_type='mcp-image-published' \
-            -f client_payload[image]="$IMAGE_NAME:$IMAGE_TAG" \
-            -f client_payload[tag]="$IMAGE_TAG"

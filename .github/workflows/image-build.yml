@@ -16,6 +16,34 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+    # The crawl is incremental (only new URLs are fetched), so reusing the
+    # previous crawl avoids re-hitting the docs site. Only main saves a cache,
+    # and the weekly key forces a cold crawl each week so content can't go stale.
+    # PRs restore the latest cache (any week) and never save.
+    - name: Get crawl cache key
+      id: cache-key
+      run: |
+        echo "prefix=docs-crawl-${{ hashFiles('sources.yaml') }}-" >> "$GITHUB_OUTPUT"
+        echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+
+    - name: Restore and save crawl cache (main)
+      if: github.event_name != 'pull_request'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: website-cache
+        key: ${{ steps.cache-key.outputs.prefix }}${{ steps.cache-key.outputs.week }}
+
+    - name: Restore crawl cache (pull request)
+      if: github.event_name == 'pull_request'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: website-cache
+        key: ${{ steps.cache-key.outputs.prefix }}${{ steps.cache-key.outputs.week }}
+        restore-keys: ${{ steps.cache-key.outputs.prefix }}
+
+    - name: Ensure crawl cache directory exists
+      run: mkdir -p website-cache
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
@@ -25,11 +53,18 @@ jobs:
         context: .
         platforms: linux/amd64
         target: db-builder
+        build-contexts: |
+          website-cache=./website-cache
         outputs: type=local,dest=./build-output
         cache-from: type=gha,scope=db-builder
         cache-to: type=gha,mode=max,scope=db-builder
         secrets: |
           github_token=${{ secrets.GITHUB_TOKEN }}
+
+    # Picked up by the cache post-step on main (skipped if the exact key already hit)
+    - name: Stage crawl output for cache
+      if: github.event_name != 'pull_request'
+      run: cp -a build-output/app/.cache/website_cache/. website-cache/
 
     - name: Upload database artifact
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

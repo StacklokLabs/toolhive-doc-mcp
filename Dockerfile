@@ -101,6 +101,10 @@ print('Downloading tiktoken encodings...'); \
 tiktoken.get_encoding('cl100k_base'); \
 print('Tiktoken encodings downloaded successfully')"
 
+# Optional crawl cache from a previous build (empty unless overridden)
+# Usage: --build-context website-cache=./path/to/website_cache
+FROM scratch AS website-cache
+
 # Build documentation database stage (optional - can be skipped if pre-built data provided)
 FROM model-downloader AS db-builder
 
@@ -108,6 +112,9 @@ FROM model-downloader AS db-builder
 USER root
 RUN mkdir -p /app/.cache/website_cache && chown -R app:app /app/.cache
 USER app
+
+# Seed the crawl cache so the build only fetches new pages
+COPY --from=website-cache --chown=app:app / /app/.cache/website_cache/
 
 # Copy sources configuration
 COPY --chown=app:app sources.yaml /app/sources.yaml

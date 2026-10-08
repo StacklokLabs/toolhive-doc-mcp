@@ -121,6 +121,7 @@ jobs:
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
 
       - name: Build and push container
+        id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -142,17 +143,8 @@ jobs:
       - name: Sign container image
         env:
           REGISTRY: ghcr.io/${{ steps.repo_owner.outputs.OWNER }}/toolhive-doc-mcp
+          DIGEST: ${{ steps.build.outputs.digest }}
         run: |
-          VERSION="${{ steps.tag.outputs.VERSION }}"
-          IS_WEEKLY="${{ steps.tag.outputs.IS_WEEKLY }}"
-          WEEKLY_TAG="${{ steps.tag.outputs.WEEKLY_TAG }}"
-
-          # Always sign latest and date-stamped tags
-          cosign sign -y "$REGISTRY:latest"
-          cosign sign -y "$REGISTRY:${WEEKLY_TAG}"
-
-          if [[ "${IS_WEEKLY}" == "false" ]]; then
-            # Tag-push: also sign semver tags
-            cosign sign -y "$REGISTRY:v${VERSION}"
-            cosign sign -y "$REGISTRY:${VERSION}"
-          fi
+          # Sign by digest: every tag points at the same manifest list, so one
+          # signature covers them all and a moved tag can't change what is signed.
+          cosign sign -y "$REGISTRY@$DIGEST"

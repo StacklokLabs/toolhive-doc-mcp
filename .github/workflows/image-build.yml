@@ -25,6 +25,9 @@ jobs:
         context: .
         platforms: linux/amd64
         target: db-builder
+        # PRs crawl a small subset; main and releases crawl everything
+        build-args: |
+          SOURCES_CONFIG=${{ github.event_name == 'pull_request' && 'sources.ci.yaml' || 'sources.yaml' }}
         outputs: type=local,dest=./build-output
         cache-from: type=gha,scope=db-builder
         cache-to: type=gha,mode=max,scope=db-builder

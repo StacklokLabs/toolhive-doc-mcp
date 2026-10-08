@@ -1,0 +1,37 @@
+# Minimal sources used by pull request builds (see SOURCES_CONFIG in the Dockerfile).
+# It exercises the full pipeline (fetch, parse, chunk, embed, persist) with a
+# handful of requests. Main and release builds use sources.yaml.
+
+sources:
+  websites:
+    - name: "Toolhive Website Docs"
+      url: "https://docs.stacklok.com/toolhive"
+      path_prefix: "/toolhive"
+      enabled: true
+
+  github_repos:
+    - name: "Toolhive Repo Docs"
+      repo_owner: "stacklok"
+      repo_name: "toolhive"
+      branch: "main"
+      paths:
+        - "README.md"
+        - "examples/authz-config.json"
+        - "examples/mcpserver-with-audit.yaml"
+      enabled: true
+
+fetching:
+  timeout: 30
+  max_retries: 3
+  concurrent_limit: 5
+  delay_ms: 100
+  max_depth: 0  # Start page only
+
+github:
+  token: null
+  api_url: "https://api.github.com"
+
+refresh:
+  enabled: false
+  interval_hours: 24
+  max_concurrent_jobs: 1

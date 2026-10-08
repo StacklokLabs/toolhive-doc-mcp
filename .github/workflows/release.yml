@@ -45,13 +45,8 @@ jobs:
     needs: determine_version
     uses: ./.github/workflows/code-checks.yml
 
-  build_image:
-    name: Build Docker Image
-    needs: code_checks
-    uses: ./.github/workflows/image-build.yml
-
   release:
-    needs: [build_image, determine_version]
+    needs: [code_checks, determine_version]
     name: Release Container
     runs-on: ubuntu-latest
     permissions:

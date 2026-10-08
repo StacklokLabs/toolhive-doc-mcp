@@ -37,7 +37,9 @@ class FetchingConfig(BaseModel):
     max_retries: int = Field(default=3, ge=1, le=10, description="Max retry attempts")
     concurrent_limit: int = Field(default=5, ge=1, le=20, description="Max concurrent requests")
     delay_ms: int = Field(default=100, ge=0, le=5000, description="Delay between requests (ms)")
-    max_depth: int = Field(default=5, ge=1, le=10, description="Max crawl depth for websites")
+    max_depth: int = Field(
+        default=5, ge=0, le=10, description="Max crawl depth for websites (0 = start page only)"
+    )
 
 
 class GitHubConfig(BaseModel):

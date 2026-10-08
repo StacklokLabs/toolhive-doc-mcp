@@ -339,7 +339,8 @@ class WebsiteFetcher:
             FetchError: If start URL cannot be fetched
             ValueError: If start URL is invalid
         """
-        max_depth = max_depth or self.fetching_config.max_depth
+        if max_depth is None:
+            max_depth = self.fetching_config.max_depth
         discovered: set[HttpUrl] = set()
         to_visit: list[tuple[str, int]] = [(str(start_url), 0)]  # (url, depth)
         visited: set[str] = set()

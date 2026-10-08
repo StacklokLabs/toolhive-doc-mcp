@@ -109,8 +109,10 @@ USER root
 RUN mkdir -p /app/.cache/website_cache && chown -R app:app /app/.cache
 USER app
 
-# Copy sources configuration
-COPY --chown=app:app sources.yaml /app/sources.yaml
+# Copy sources configuration. PR builds pass SOURCES_CONFIG=sources.ci.yaml to
+# crawl a small subset instead of the full documentation set.
+ARG SOURCES_CONFIG=sources.yaml
+COPY --chown=app:app ${SOURCES_CONFIG} /app/sources.yaml
 
 # Set environment variables for build process
 ENV FASTEMBED_CACHE_PATH=/app/.cache/fastembed

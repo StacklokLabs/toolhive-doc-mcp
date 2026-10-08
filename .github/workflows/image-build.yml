@@ -25,6 +25,10 @@ jobs:
         context: .
         platforms: linux/amd64
         target: db-builder
+        # Releases must re-crawl so the published content is fresh; otherwise BuildKit
+        # reuses the cached build.py layer when nothing feeding the build changed.
+        # (github.workflow is the caller's name in a reusable workflow.)
+        no-cache-filters: ${{ github.workflow == 'Release' && 'db-builder' || '' }}
         # PRs crawl a small subset; main and releases crawl everything
         build-args: |
           SOURCES_CONFIG=${{ github.event_name == 'pull_request' && 'sources.ci.yaml' || 'sources.yaml' }}

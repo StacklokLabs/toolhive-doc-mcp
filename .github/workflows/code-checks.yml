@@ -7,6 +7,37 @@ on:
   workflow_call:
 
 jobs:
+  changes:
+    name: Detect Image Build Need
+    runs-on: ubuntu-latest
+    outputs:
+      build_image: ${{ steps.filter.outputs.build_image }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+
+      # The DB build crawls the website and GitHub, so skip it for Renovate PRs
+      # that only touch the lockfile or workflows (other than image-build.yml).
+      - name: Decide whether to build the image
+        id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          build=true
+          if [ "$EVENT" = "pull_request" ] && [ "$ACTOR" = "renovate[bot]" ]; then
+            # On pull_request events HEAD is a merge commit; HEAD^1 is the base.
+            changed=$(git diff --name-only HEAD^1 HEAD)
+            other=$(echo "$changed" | grep -vE '^(uv\.lock|\.github/workflows/.*)$' || true)
+            image_wf=$(echo "$changed" | grep -x '.github/workflows/image-build.yml' || true)
+            if [ -z "$other" ] && [ -z "$image_wf" ]; then
+              build=false
+            fi
+          fi
+          echo "build_image=$build" >> "$GITHUB_OUTPUT"
+
   code_quality:
     name: Code Quality
     uses: ./.github/workflows/code-quality.yml
@@ -16,4 +47,5 @@ jobs:
   image_build:
     name: Build Docker Image
     uses: ./.github/workflows/image-build.yml
-    needs: code_quality
+    needs: [code_quality, changes]
+    if: needs.changes.outputs.build_image == 'true'

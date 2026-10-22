@@ -33,7 +33,7 @@ dev = [
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
     "ruff>=0.16.10",
-    "ty>=0.0.88",
+    "ty>=0.0.91",
 ]
 security = [
     "bandit[toml]>=1.9.4",

@@ -2957,7 +2957,7 @@ security = [
 requires-dist = [
     { name = "apscheduler", specifier = ">=3.11.3" },
     { name = "beautifulsoup4", specifier = ">=4.15.0" },
-    { name = "fastembed", specifier = ">=0.9.0" },
+    { name = "fastembed", specifier = ">=0.9.1" },
     { name = "fastmcp", specifier = ">=4.0.11" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "lxml", specifier = ">=6.1.3" },

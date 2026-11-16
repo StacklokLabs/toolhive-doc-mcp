@@ -2911,7 +2911,7 @@ dev = [
 ]
 security = [
     { name = "bandit", extras = ["toml"], specifier = ">=1.9.4" },
-    { name = "cyclonedx-bom", specifier = ">=7.5.0" },
+    { name = "cyclonedx-bom", specifier = ">=8.0.1" },
     { name = "pip-audit", specifier = ">=2.10.1" },
 ]
 

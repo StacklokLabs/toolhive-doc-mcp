@@ -129,6 +129,9 @@ jobs:
             prebuilt-data=./prebuilt-data
           target: runner-prebuilt
           platforms: linux/amd64,linux/arm64
+          # Rebuild the runtime stage on every release so the apt upgrade
+          # picks up Debian security fixes. A cached layer would keep old packages.
+          no-cache-filters: runner-base
           push: true
           tags: ${{ steps.docker_tags.outputs.TAGS }}
           labels: ${{ steps.meta.outputs.labels }}

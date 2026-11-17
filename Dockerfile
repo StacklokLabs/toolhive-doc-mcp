@@ -131,8 +131,12 @@ RUN --mount=type=cache,target=/app/.cache/uv,uid=1000,gid=1000 \
 # Base runner stage - common setup for both build variants
 FROM python:3.13-slim AS runner-base
 
-# Install curl for health checks
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Apply pending Debian security updates, then install curl for health checks.
+# The python base image can lag Debian security fixes by weeks.
+# The Release workflow skips the cache for this stage, so each rebuild upgrades.
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 

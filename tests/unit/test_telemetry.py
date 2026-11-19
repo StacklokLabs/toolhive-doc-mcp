@@ -249,3 +249,28 @@ class TestTelemetryService:
         assert attrs["mcp.tool.name"] == "get_chunk"
         assert attrs["response.chunk_retrieved"] is True
         assert attrs["response.content_length"] == len("Test content")
+
+
+class TestTelemetryServiceVersion:
+    """The OTel service version follows the server version unless overridden"""
+
+    @staticmethod
+    def _resource_version(mock_config):
+        mock_config.otel_enabled = True
+        mock_config.otel_tracing_enabled = False
+        mock_config.otel_endpoint = "http://localhost:4318"
+        mock_config.otel_service_name = "test-service"
+        mock_config.server_version = "0.1.0"
+        with patch("src.services.telemetry.set_logger_provider"):
+            service = TelemetryService()
+        return service.logger_provider.resource.attributes["service.version"]
+
+    @patch("src.services.telemetry.config")
+    def test_defaults_to_server_version(self, mock_config):
+        mock_config.otel_service_version = None
+        assert self._resource_version(mock_config) == "0.1.0"
+
+    @patch("src.services.telemetry.config")
+    def test_explicit_override(self, mock_config):
+        mock_config.otel_service_version = "custom"
+        assert self._resource_version(mock_config) == "custom"

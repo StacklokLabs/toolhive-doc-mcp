@@ -42,7 +42,7 @@ This allows:
    - `OTEL_ENABLED`: Enable/disable telemetry (default: `true`)
    - `OTEL_ENDPOINT`: Collector endpoint (default: `http://otel-collector.otel.svc.cluster.local:4318`)
    - `OTEL_SERVICE_NAME`: Service name (default: `toolhive-doc-mcp`)
-   - `OTEL_SERVICE_VERSION`: Service version (default: `1.0.0`)
+   - `OTEL_SERVICE_VERSION`: Service version (default: the value of `SERVER_VERSION`)
 
 3. **Integration** (`src/mcp_server.py`)
    - Both `query_docs` and `get_chunk` tools log telemetry

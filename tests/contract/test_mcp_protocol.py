@@ -4,6 +4,7 @@ import pytest
 from fastmcp import Client
 from fastmcp.exceptions import ToolError
 
+from src.config import config
 from src.mcp_server import mcp
 
 EXPECTED_TITLES = {
@@ -21,6 +22,11 @@ async def client():
 @pytest.fixture
 async def tools(client):
     return {tool.name: tool for tool in await client.list_tools()}
+
+
+async def test_server_reports_configured_version(client):
+    """serverInfo carries the configured version, not a hardcoded one"""
+    assert client.server_info.version == config.server_version
 
 
 class TestToolDefinitions:

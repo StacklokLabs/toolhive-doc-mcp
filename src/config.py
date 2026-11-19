@@ -55,6 +55,10 @@ class AppConfig(BaseSettings):
     mcp_host: str = Field(default="0.0.0.0", description="MCP server bind address")
     mcp_port: int = Field(default=8080, ge=1024, le=65535, description="MCP server port")
     mcp_cors_enabled: bool = Field(default=True, description="Enable CORS for MCP server")
+    server_version: str = Field(
+        default="dev",
+        description="Version reported to MCP clients; release images set it from the git tag",
+    )
 
     # Query
     query_result_limit: int = Field(
@@ -73,8 +77,8 @@ class AppConfig(BaseSettings):
     otel_service_name: str = Field(
         default="toolhive-doc-mcp", description="Service name for OpenTelemetry"
     )
-    otel_service_version: str = Field(
-        default="1.0.0", description="Service version for OpenTelemetry"
+    otel_service_version: str | None = Field(
+        default=None, description="Service version for OpenTelemetry (defaults to server_version)"
     )
     otel_log_full_results: bool = Field(
         default=True,

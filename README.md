@@ -114,13 +114,19 @@ The process displays detailed progress and a summary at the end.
 uv run python src/mcp_server.py
 ```
 
-Server will be available at: `http://localhost:8080`
+The MCP endpoint is `http://localhost:8080/mcp`, using the Streamable HTTP transport. The server is stateless: it supports MCP protocol version 2026-07-28, and clients on 2025-11-25 and earlier still work but don't receive an `Mcp-Session-Id`. Health checks are served at `/` and `/health`.
 
 ### 6. Query the Server
 
+Point any MCP client at `http://localhost:8080/mcp`. To call a tool directly with `curl` using protocol version 2026-07-28, send a single self-contained request with no `initialize` handshake:
+
 ```bash
-curl -X POST http://localhost:8080/sse \
+curl -X POST http://localhost:8080/mcp \
   -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "MCP-Protocol-Version: 2026-07-28" \
+  -H "Mcp-Method: tools/call" \
+  -H "Mcp-Name: query_docs" \
   -d '{
     "jsonrpc": "2.0",
     "id": 1,
@@ -130,10 +136,24 @@ curl -X POST http://localhost:8080/sse \
       "arguments": {
         "query": "What is toolhive?",
         "limit": 5
+      },
+      "_meta": {
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+        "io.modelcontextprotocol/clientInfo": {"name": "curl", "version": "1.0"},
+        "io.modelcontextprotocol/clientCapabilities": {}
       }
     }
   }'
 ```
+
+### Available tools
+
+| Tool | Description |
+| --- | --- |
+| `query_docs` | Search the documentation. Takes `query`, plus optional `limit` (1-50, default 5), `query_type` (`semantic`, `keyword`, or `hybrid`), and `min_score` (0.0-1.0). |
+| `get_chunk` | Retrieve the full content and metadata of a chunk by its UUID. |
+
+Both tools are annotated as read-only and idempotent.
 
 ## Docker Deployment
 

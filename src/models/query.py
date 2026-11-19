@@ -1,6 +1,7 @@
 """Query request/response models"""
 
 from enum import Enum
+from typing import Annotated
 
 from pydantic import BaseModel, Field
 
@@ -13,13 +14,19 @@ class QueryType(str, Enum):
     HYBRID = "hybrid"
 
 
+# Input constraints shared by the Query model and the query_docs tool schema
+QueryText = Annotated[str, Field(min_length=1)]
+QueryLimit = Annotated[int, Field(ge=1, le=50)]
+MinScore = Annotated[float, Field(ge=0.0, le=1.0)]
+
+
 class Query(BaseModel):
     """User-submitted request for documentation search"""
 
-    text: str = Field(min_length=1, description="The query string (natural language or keywords)")
-    limit: int = Field(default=5, ge=1, le=50, description="Maximum number of results to return")
-    min_score: float | None = Field(
-        default=None, ge=0.0, le=1.0, description="Minimum relevance score threshold (0.0-1.0)"
+    text: QueryText = Field(description="The query string (natural language or keywords)")
+    limit: QueryLimit = Field(default=5, description="Maximum number of results to return")
+    min_score: MinScore | None = Field(
+        default=None, description="Minimum relevance score threshold (0.0-1.0)"
     )
     query_type: QueryType = Field(
         default=QueryType.SEMANTIC, description="Type of search to perform"

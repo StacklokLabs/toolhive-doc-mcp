@@ -2,18 +2,17 @@
 
 import logging
 import threading
-from typing import Annotated, Any, Literal
+from typing import Any
 from uuid import UUID
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastmcp import FastMCP
 from fastmcp.exceptions import McpError
 from mcp.types import ToolAnnotations
-from pydantic import Field
 from starlette.responses import JSONResponse
 
 from src.config import config
-from src.models.query import Query, QueryType
+from src.models.query import MinScore, Query, QueryLimit, QueryText, QueryType
 from src.models.search_result import QueryDocsOutput
 from src.services.refresh_orchestrator import RefreshOrchestrator
 from src.services.search import SearchService
@@ -75,10 +74,10 @@ async def _get_services() -> tuple[VectorStore, SearchService]:
     annotations=ToolAnnotations(title="Search Stacklok Docs", **READ_ONLY_TOOL),
 )
 async def query_docs(
-    query: Annotated[str, Field(min_length=1)],
-    limit: Annotated[int, Field(ge=1, le=50)] = 5,
-    query_type: Literal["semantic", "keyword", "hybrid"] = "semantic",
-    min_score: Annotated[float | None, Field(ge=0.0, le=1.0)] = None,
+    query: QueryText,
+    limit: QueryLimit = 5,
+    query_type: QueryType = QueryType.SEMANTIC,
+    min_score: MinScore | None = None,
 ) -> QueryDocsOutput:
     """Search Stacklok documentation and return relevant snippets with relevance scores
 
@@ -100,9 +99,7 @@ async def query_docs(
         _, search_service = await _get_services()
 
         # Create query object (input bounds are already enforced by the tool schema)
-        query_obj = Query(
-            text=query, limit=limit, query_type=QueryType(query_type), min_score=min_score
-        )
+        query_obj = Query(text=query, limit=limit, query_type=query_type, min_score=min_score)
 
         # Execute search
         try:
@@ -120,7 +117,7 @@ async def query_docs(
             query=query,
             parameters={
                 "limit": limit,
-                "query_type": query_type,
+                "query_type": query_type.value,
                 "min_score": min_score,
             },
             response=response,

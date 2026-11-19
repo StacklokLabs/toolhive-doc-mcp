@@ -13,9 +13,14 @@ EXPECTED_TITLES = {
 
 
 @pytest.fixture
-async def tools():
+async def client():
     async with Client(mcp) as client:
-        yield {tool.name: tool for tool in await client.list_tools()}
+        yield client
+
+
+@pytest.fixture
+async def tools(client):
+    return {tool.name: tool for tool in await client.list_tools()}
 
 
 class TestToolDefinitions:
@@ -62,7 +67,6 @@ class TestInputValidation:
             {"query": "toolhive", "min_score": 1.5},
         ],
     )
-    async def test_query_docs_rejects_invalid_input(self, arguments):
-        async with Client(mcp) as client:
-            with pytest.raises(ToolError, match="validation error"):
-                await client.call_tool("query_docs", arguments)
+    async def test_query_docs_rejects_invalid_input(self, client, arguments):
+        with pytest.raises(ToolError, match="validation error"):
+            await client.call_tool("query_docs", arguments)

@@ -42,10 +42,11 @@ cp .env.example .env
 Key environment configuration options are available in `.env`, but most settings are now in `sources.yaml`.
 
 Available environment variables include:
+- `SERVER_VERSION`: Version reported to MCP clients (default: `dev`; release images set it to the release version)
 - `OTEL_ENABLED`: Enable/disable OpenTelemetry logging (default: `true`)
 - `OTEL_ENDPOINT`: OpenTelemetry collector endpoint (default: `http://otel-collector.otel.svc.cluster.local:4318`)
 - `OTEL_SERVICE_NAME`: Service name for telemetry (default: `toolhive-doc-mcp`)
-- `OTEL_SERVICE_VERSION`: Service version for telemetry (default: `1.0.0`)
+- `OTEL_SERVICE_VERSION`: Service version for telemetry (default: the value of `SERVER_VERSION`)
 
 #### Sources Configuration
 
@@ -436,7 +437,6 @@ OTEL_ENDPOINT=http://otel-collector.otel.svc.cluster.local:4318
 
 # Service identification
 OTEL_SERVICE_NAME=toolhive-doc-mcp
-OTEL_SERVICE_VERSION=1.0.0
 ```
 
 ### Captured Data

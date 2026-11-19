@@ -158,6 +158,10 @@ COPY --from=model-downloader --chown=app:app /app/.cache/tiktoken /app/.cache/ti
 # Switch to non-root user
 USER app
 
+# Version reported to MCP clients. The Release workflow passes the git tag.
+ARG VERSION=dev
+ENV SERVER_VERSION=${VERSION}
+
 # Set default environment variables for container deployment
 ENV FASTEMBED_CACHE_PATH=/app/.cache/fastembed
 ENV TIKTOKEN_CACHE_DIR=/app/.cache/tiktoken

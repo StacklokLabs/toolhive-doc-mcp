@@ -56,7 +56,7 @@ class TelemetryService:
         resource = Resource(
             attributes={
                 SERVICE_NAME: config.otel_service_name,
-                SERVICE_VERSION: config.otel_service_version,
+                SERVICE_VERSION: config.otel_service_version or config.server_version,
             }
         )
 
@@ -108,7 +108,7 @@ class TelemetryService:
         resource = Resource(
             attributes={
                 SERVICE_NAME: config.otel_service_name,
-                SERVICE_VERSION: config.otel_service_version,
+                SERVICE_VERSION: config.otel_service_version or config.server_version,
             }
         )
 

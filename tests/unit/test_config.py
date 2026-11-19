@@ -52,3 +52,21 @@ def test_environment_variable_precedence(monkeypatch):
     # Verify defaults for non-overridden values
     assert config.db_path == "./.cache/docs.db"
     assert config.chunk_size_tokens == 512
+
+
+def test_server_version_defaults_to_dev(monkeypatch):
+    """Without SERVER_VERSION, the server reports a dev version"""
+    monkeypatch.delenv("SERVER_VERSION", raising=False)
+    monkeypatch.delenv("OTEL_SERVICE_VERSION", raising=False)
+
+    config = AppConfig(_env_file=None)
+
+    assert config.server_version == "dev"
+    assert config.otel_service_version is None
+
+
+def test_server_version_from_environment(monkeypatch):
+    """Release images set SERVER_VERSION from the git tag"""
+    monkeypatch.setenv("SERVER_VERSION", "0.1.0")
+
+    assert AppConfig(_env_file=None).server_version == "0.1.0"

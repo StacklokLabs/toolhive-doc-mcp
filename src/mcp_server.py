@@ -25,7 +25,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize fastmcp server
-mcp = FastMCP(name="stacklok-docs-search", version="1.0.0")
+mcp = FastMCP(name="stacklok-docs-search", version=config.server_version)
 
 # Initialize services (will be set up on first request)
 _vector_store: VectorStore | None = None

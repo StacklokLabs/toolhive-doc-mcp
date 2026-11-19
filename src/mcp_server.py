@@ -2,12 +2,14 @@
 
 import logging
 import threading
-from typing import Any
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastmcp import FastMCP
 from fastmcp.exceptions import McpError
+from mcp.types import ToolAnnotations
+from pydantic import Field
 from starlette.responses import JSONResponse
 
 from src.config import config
@@ -33,6 +35,9 @@ _search_service: SearchService | None = None
 # Background refresh orchestrator
 _refresh_orchestrator: RefreshOrchestrator | None = None
 _scheduler: BackgroundScheduler | None = None
+
+# Both tools only read the local documentation database
+READ_ONLY_TOOL = {"readOnlyHint": True, "idempotentHint": True, "openWorldHint": False}
 
 # Database swap lock - ensures atomic database swaps don't interfere with service init
 _db_swap_lock = threading.Lock()
@@ -65,17 +70,23 @@ async def _get_services() -> tuple[VectorStore, SearchService]:
     return _vector_store, _search_service
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Search Stacklok Docs",
+    annotations=ToolAnnotations(title="Search Stacklok Docs", **READ_ONLY_TOOL),
+)
 async def query_docs(
-    query: str, limit: int = 5, query_type: str = "semantic", min_score: float | None = None
+    query: Annotated[str, Field(min_length=1)],
+    limit: Annotated[int, Field(ge=1, le=50)] = 5,
+    query_type: Literal["semantic", "keyword", "hybrid"] = "semantic",
+    min_score: Annotated[float | None, Field(ge=0.0, le=1.0)] = None,
 ) -> QueryDocsOutput:
     """Search Stacklok documentation and return relevant snippets with relevance scores
 
     Args:
         query: Search query (natural language question or keywords)
-        limit: Maximum number of results to return (1-50, default: 5)
-        query_type: Type of search (semantic, keyword, hybrid, default: semantic)
-        min_score: Minimum relevance score (0.0-1.0)
+        limit: Maximum number of results to return
+        query_type: Type of search: semantic, keyword, or hybrid
+        min_score: Minimum relevance score
 
     Returns:
         QueryDocsOutput: Search results with metadata
@@ -88,20 +99,10 @@ async def query_docs(
         # Get services
         _, search_service = await _get_services()
 
-        # Validate query_type
-        try:
-            qt = QueryType(query_type)
-        except ValueError as e:
-            error = e
-            raise McpError(
-                code=-32602,
-                message=(
-                    f"Invalid query_type: {query_type}. Must be: semantic, keyword, or hybrid"
-                ),
-            ) from e
-
-        # Create query object
-        query_obj = Query(text=query, limit=limit, query_type=qt, min_score=min_score)
+        # Create query object (input bounds are already enforced by the tool schema)
+        query_obj = Query(
+            text=query, limit=limit, query_type=QueryType(query_type), min_score=min_score
+        )
 
         # Execute search
         try:
@@ -127,7 +128,10 @@ async def query_docs(
         )
 
 
-@mcp.tool()
+@mcp.tool(
+    title="Get Documentation Chunk",
+    annotations=ToolAnnotations(title="Get Documentation Chunk", **READ_ONLY_TOOL),
+)
 async def get_chunk(chunk_id: str) -> dict[str, Any]:
     """Retrieve full details of a specific documentation chunk by its ID
 
@@ -240,9 +244,15 @@ def main() -> None:
     _startup_sync()
 
     try:
-        # Run server using FastMCP's built-in runner
-        # CORS is handled automatically by FastMCP via streamable-http transport
-        mcp.run(transport="streamable-http", host="0.0.0.0", port=config.mcp_port)
+        # Run server using FastMCP's built-in runner. The server keeps no
+        # per-session state, so it runs stateless: 2026-07-28 has no protocol
+        # sessions, and earlier protocol versions simply get no Mcp-Session-Id.
+        mcp.run(
+            transport="streamable-http",
+            host="0.0.0.0",
+            port=config.mcp_port,
+            stateless_http=True,
+        )
     finally:
         # Cleanup on shutdown
         _shutdown_sync()
